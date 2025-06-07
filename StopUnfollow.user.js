@@ -22,21 +22,20 @@
     on(selector, callback) {
       if (document.querySelector(selector)) {
         callback()
-        return
       }
-      const obs = new MutationObserver((mutations, observer) => {
+      const obs = new MutationObserver(mutations => {
         for (const m of mutations) {
           for (const node of m.addedNodes) {
             if (!(node instanceof HTMLElement)) continue
             if (node.matches(selector) || node.querySelector(selector)) {
               callback()
-              observer.disconnect()
               return
             }
           }
         }
       })
       obs.observe(document.body, { childList: true, subtree: true })
+      return obs
     }
   }
 
