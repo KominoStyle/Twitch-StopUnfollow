@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.44
+// @version      1.45
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
@@ -20,14 +20,32 @@
 
   const RAW_URL = 'https://raw.githubusercontent.com/KominoStyle/Twitch-StopUnfollow/main/StopUnfollow.user.js'
 
+  function compareVersions(a, b) {
+    const pa = a.split('.').map(Number)
+    const pb = b.split('.').map(Number)
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      const na = pa[i] || 0
+      const nb = pb[i] || 0
+      if (na > nb) return 1
+      if (na < nb) return -1
+    }
+    return 0
+  }
+
   function checkForUpdates() {
-    if (typeof GM_xmlhttpRequest !== 'function' || !GM_info?.script?.version) return
-    GM_xmlhttpRequest({
+    if (typeof GM?.xmlHttpRequest !== 'function' && typeof GM_xmlhttpRequest !== 'function') return
+    const cur = GM_info?.script?.version
+    if (!cur) return
+
+    GM.xmlHttpRequest({
       method: 'GET',
       url: RAW_URL + '?_=' + Date.now(),
+      anonymous: true,
+      headers: { 'Cache-Control': 'no-cache' },
       onload(res) {
+        if (res.status !== 200) return
         const match = res.responseText.match(/@version\s+([\d.]+)/)
-        if (match && match[1] !== GM_info.script.version) {
+        if (match && compareVersions(match[1], cur) > 0) {
           const box = document.createElement('div')
           box.id = 'tm-update-box'
           const btn = document.createElement('button')
