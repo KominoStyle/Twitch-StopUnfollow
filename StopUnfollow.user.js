@@ -1,13 +1,12 @@
 // ==UserScript==
-// @name         Twitch: Stop Unfollow (Helix Token Fix v1.42)
+// @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
 // @version      1.42
-// @description  Inserts “Stop Unfollow” under avatar→Settings. Validates via Helix using the logged-in user’s real OAuth token (extracted from “twilight-auth” or “persist:twilight”). Disables “Unfollow” on saved channels without reloading, and logs debug info if lookup fails.
+// @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addStyle
-// @grant        GM_xmlhttpRequest
 // @connect      api.twitch.tv
 // @run-at       document-idle
 // ==/UserScript==
