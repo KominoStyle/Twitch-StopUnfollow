@@ -1,2 +1,27 @@
 # Twitch-StopUnfollow
-Stop Unfollow Your Streamer by Mistake
+
+Twitch-StopUnfollow is a Tampermonkey userscript that helps you avoid unfollowing your favourite streamers by accident. It injects a **Stop Unfollow** option into the avatar settings menu and disables the Unfollow button for channels you save.
+
+## Features
+
+- Adds a Stop Unfollow entry under the avatar settings dropdown.
+- Draggable modal to manage a list of saved channels.
+- One-click button to add the current channel or enter a name manually.
+- Search and sort your saved list.
+- Disables the Unfollow button on saved channels across navigation.
+
+## Installation
+
+1. Install [Tampermonkey](https://www.tampermonkey.net/) for your browser.
+2. Open [`StopUnfollow.user.js`](./StopUnfollow.user.js) in Tampermonkey and confirm the install.
+
+## Usage
+
+1. Click your Twitch avatar and select **Stop Unfollow**.
+2. Use the modal to add channels or remove them from the list.
+3. The Unfollow button will be disabled when visiting any saved channel.
+4. The modal can be dragged around and closed with the **×** in the header.
+
+## License
+
+Released under the [BSD 3-Clause License](LICENSE). © 2025 !♥Koͨmͧiͭnͥoͤ Style♥!
