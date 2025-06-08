@@ -7,12 +7,64 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addStyle
+// @grant        GM_xmlhttpRequest
 // @connect      api.twitch.tv
+// @connect      raw.githubusercontent.com
+// @updateURL    https://raw.githubusercontent.com/KominoStyle/Twitch-StopUnfollow/main/StopUnfollow.user.js
+// @downloadURL  https://raw.githubusercontent.com/KominoStyle/Twitch-StopUnfollow/main/StopUnfollow.user.js
 // @run-at       document-idle
 // ==/UserScript==
 
 (function () {
   'use strict'
+
+  const RAW_URL = 'https://raw.githubusercontent.com/KominoStyle/Twitch-StopUnfollow/main/StopUnfollow.user.js'
+  let latestVersion = null
+
+  function compareVersions(a, b) {
+    const pa = a.split('.').map(Number)
+    const pb = b.split('.').map(Number)
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      const na = pa[i] || 0
+      const nb = pb[i] || 0
+      if (na > nb) return 1
+      if (na < nb) return -1
+    }
+    return 0
+  }
+
+  function checkForUpdates() {
+    if (typeof GM?.xmlHttpRequest !== 'function' && typeof GM_xmlhttpRequest !== 'function') return
+    const cur = GM_info?.script?.version
+    if (!cur) return
+
+    GM.xmlHttpRequest({
+      method: 'GET',
+      url: RAW_URL + '?_=' + Date.now(),
+      anonymous: true,
+      headers: { 'Cache-Control': 'no-cache' },
+      onload(res) {
+        if (res.status !== 200) return
+        const match = res.responseText.match(/@version\s+([\d.]+)/)
+        if (match && compareVersions(match[1], cur) > 0) {
+          latestVersion = match[1]
+          showUpdatePrompt()
+        }
+      }
+    })
+  }
+
+  checkForUpdates()
+
+  function showUpdatePrompt() {
+    const panel = document.getElementById('tm-lock-panel')
+    const container = document.getElementById('tm-update-prompt')
+    const link = document.getElementById('tm-update-link')
+    if (!panel || !container || !link || !latestVersion) return
+    link.textContent = `Install v${latestVersion}`
+    link.href = RAW_URL
+    container.style.display = 'block'
+  }
 
   //////////////////////////////
   // 1) domObserver Helper
@@ -370,17 +422,32 @@
     `);
 
     // Header
-    const header = document.createElement('div'); header.className = 'tm-header';
-    const title = document.createElement('span'); title.className = 'tm-title'; title.textContent = 'Saved Channels (Count: 0)';
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'tm-close-btn';
-    closeBtn.title = 'Close';
-    closeBtn.innerHTML = '&times;';
-    function handleClosePanel() { panel.style.display = 'none' }
-    closeBtn.addEventListener('click', handleClosePanel);
-    header.append(title, closeBtn);
-    panel.append(header);
-    makeDraggable(panel, header);
+  const header = document.createElement('div'); header.className = 'tm-header';
+  const title = document.createElement('span'); title.className = 'tm-title'; title.textContent = 'Saved Channels (Count: 0)';
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'tm-close-btn';
+  closeBtn.title = 'Close';
+  closeBtn.innerHTML = '&times;';
+  function handleClosePanel() { panel.style.display = 'none' }
+  closeBtn.addEventListener('click', handleClosePanel);
+  header.append(title, closeBtn);
+  panel.append(header);
+  const updatePrompt = document.createElement('div');
+  updatePrompt.id = 'tm-update-prompt';
+  updatePrompt.style.display = 'none';
+  updatePrompt.style.background = '#9147ff';
+  updatePrompt.style.color = '#fff';
+  updatePrompt.style.padding = '6px 10px';
+  updatePrompt.style.fontSize = '13px';
+  updatePrompt.style.textAlign = 'center';
+  const updateLink = document.createElement('a');
+  updateLink.id = 'tm-update-link';
+  updateLink.target = '_blank';
+  updateLink.style.color = '#fff';
+  updateLink.style.textDecoration = 'underline';
+  updatePrompt.append('Update available: ', updateLink);
+  panel.append(updatePrompt);
+  makeDraggable(panel, header);
 
     // Toast
     const toast = document.createElement('div'); toast.id = 'tm-toast'; panel.append(toast);
