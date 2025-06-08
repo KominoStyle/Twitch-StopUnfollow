@@ -70,12 +70,20 @@
   // 1) domObserver Helper
   //////////////////////////////
   const domObserver = {
-    on(selector, callback) {
+    on(selector, callback, config = { childList: true, subtree: true }) {
       if (document.querySelector(selector)) {
         callback()
       }
       const obs = new MutationObserver(function handleMutations(mutations) {
         for (const mutation of mutations) {
+          if (
+            mutation.type === 'attributes' &&
+            mutation.target instanceof HTMLElement &&
+            mutation.target.matches(selector)
+          ) {
+            callback()
+            return
+          }
           for (const node of mutation.addedNodes) {
             if (!(node instanceof HTMLElement)) continue
             if (node.matches(selector) || node.querySelector(selector)) {
@@ -85,7 +93,7 @@
           }
         }
       })
-      obs.observe(document.body, { childList: true, subtree: true })
+      obs.observe(document.body, config)
       return obs
     }
   }
@@ -128,6 +136,20 @@
     btn.removeAttribute('title')
     btn.style.opacity = ''
     btn.style.cursor = ''
+  }
+
+  function observeUnfollowButton() {
+    if (followObserver) followObserver.disconnect()
+    followObserver = domObserver.on(
+      'button[data-a-target="follow-button"], button[data-a-target="unfollow-button"]',
+      () => disableUnfollowIfSaved(),
+      {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['data-a-target']
+      }
+    )
   }
 
   //////////////////////////////
@@ -179,6 +201,7 @@
   //////////////////////////////
   let sortMode = 'latest'
   let settingsObserver
+  let followObserver
   function buildPanel() {
     if (document.getElementById('tm-lock-panel')) return;
     const panel = document.createElement('div');
@@ -807,6 +830,7 @@ async function onAddCurrent() {
   disableUnfollowIfSaved()
   injectHeaderLockIcon()
   hookSettingsDropdown()
+  observeUnfollowButton()
 
     //////////////////////////////
   // SPA-aware Navigation Hook
@@ -816,6 +840,7 @@ async function onAddCurrent() {
       injectHeaderLockIcon()
       if (settingsObserver) settingsObserver.disconnect()
       hookSettingsDropdown()
+      observeUnfollowButton()
       updateAddCurrentButtonState()
     }
     // Patch pushState only once
