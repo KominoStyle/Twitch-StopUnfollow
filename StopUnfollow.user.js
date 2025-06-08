@@ -207,6 +207,14 @@
         flex-direction: column;
         overflow: hidden;
       }
+      .tm-version {
+        position: absolute;
+        top: 29px;
+        left: 14px;
+        font-size: 12px;
+        pointer-events: none;
+        font-family: 'Brush Script MT', serif;
+      }
       /* Header */
       #tm-lock-panel .tm-header {
         background: #18181b;
@@ -447,6 +455,10 @@
   updateLink.style.textDecoration = 'underline';
   updatePrompt.append('Update available: ', updateLink);
   panel.append(updatePrompt);
+  const versionDiv = document.createElement('div');
+  versionDiv.className = 'tm-version';
+  versionDiv.textContent = `v${GM_info?.script?.version}`;
+  header.append(versionDiv);
   makeDraggable(panel, header);
 
     // Toast
