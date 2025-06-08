@@ -443,7 +443,7 @@
   const updatePrompt = document.createElement('div');
   updatePrompt.id = 'tm-update-prompt';
   updatePrompt.style.display = 'none';
-  updatePrompt.style.background = '#9147ff';
+  updatePrompt.style.background = '#1e69ff';
   updatePrompt.style.color = '#fff';
   updatePrompt.style.padding = '6px 10px';
   updatePrompt.style.fontSize = '13px';
