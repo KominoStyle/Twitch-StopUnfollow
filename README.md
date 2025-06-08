@@ -14,7 +14,7 @@ Twitch-StopUnfollow is a Tampermonkey userscript that helps you avoid unfollowin
 ## Installation
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/) for your browser.
-2. Open [`StopUnfollow.user.js`](./StopUnfollow.user.js) in Tampermonkey and confirm the install.
+2. Open [`StopUnfollow.user.js`](./StopUnfollow.user.js), click "Raw" and confirm the install.
 
 ## Usage
 
