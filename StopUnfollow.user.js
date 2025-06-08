@@ -1,18 +1,70 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.42
+// @version      1.43
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addStyle
+// @grant        GM_xmlhttpRequest
 // @connect      api.twitch.tv
+// @connect      raw.githubusercontent.com
+// @updateURL    https://raw.githubusercontent.com/KominoStyle/Twitch-StopUnfollow/main/StopUnfollow.user.js
+// @downloadURL  https://raw.githubusercontent.com/KominoStyle/Twitch-StopUnfollow/main/StopUnfollow.user.js
 // @run-at       document-idle
 // ==/UserScript==
 
 (function () {
   'use strict'
+
+  const RAW_URL = 'https://raw.githubusercontent.com/KominoStyle/Twitch-StopUnfollow/main/StopUnfollow.user.js'
+  let latestVersion = null
+
+  function compareVersions(a, b) {
+    const pa = a.split('.').map(Number)
+    const pb = b.split('.').map(Number)
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      const na = pa[i] || 0
+      const nb = pb[i] || 0
+      if (na > nb) return 1
+      if (na < nb) return -1
+    }
+    return 0
+  }
+
+  function checkForUpdates() {
+    if (typeof GM?.xmlHttpRequest !== 'function' && typeof GM_xmlhttpRequest !== 'function') return
+    const cur = GM_info?.script?.version
+    if (!cur) return
+
+    GM.xmlHttpRequest({
+      method: 'GET',
+      url: RAW_URL + '?_=' + Date.now(),
+      anonymous: true,
+      headers: { 'Cache-Control': 'no-cache' },
+      onload(res) {
+        if (res.status !== 200) return
+        const match = res.responseText.match(/@version\s+([\d.]+)/)
+        if (match && compareVersions(match[1], cur) > 0) {
+          latestVersion = match[1]
+          showUpdatePrompt()
+        }
+      }
+    })
+  }
+
+  checkForUpdates()
+
+  function showUpdatePrompt() {
+    const panel = document.getElementById('tm-lock-panel')
+    const container = document.getElementById('tm-update-prompt')
+    const link = document.getElementById('tm-update-link')
+    if (!panel || !container || !link || !latestVersion) return
+    link.textContent = `Install v${latestVersion}`
+    link.href = RAW_URL
+    container.style.display = 'block'
+  }
 
   //////////////////////////////
   // 1) domObserver Helper
@@ -22,9 +74,9 @@
       if (document.querySelector(selector)) {
         callback()
       }
-      const obs = new MutationObserver(mutations => {
-        for (const m of mutations) {
-          for (const node of m.addedNodes) {
+      const obs = new MutationObserver(function handleMutations(mutations) {
+        for (const mutation of mutations) {
+          for (const node of mutation.addedNodes) {
             if (!(node instanceof HTMLElement)) continue
             if (node.matches(selector) || node.querySelector(selector)) {
               callback()
@@ -104,20 +156,21 @@
     icon.innerHTML = `
       <path fill-rule="evenodd" d="M14.001 5.99A3.992 3.992 0 0 0 10.01 2h-.018a3.992 3.992 0 0 0-3.991 3.99V8H3.999v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8h-1.998V5.99zm-2 2.01V5.995A1.996 1.996 0 0 0 10.006 4h-.01a1.996 1.996 0 0 0-1.995 1.995V8h4z" clip-rule="evenodd"></path>
     `
-    icon.addEventListener('click', () => {
-      let arr = getLockedChannels()
-      if (arr.includes(channel)) {
-        arr = arr.filter(ch => ch !== channel)
-        setLockedChannels(arr)
+    function handleHeaderIconClick() {
+      let lockedChannels = getLockedChannels()
+      if (lockedChannels.includes(channel)) {
+        lockedChannels = lockedChannels.filter(savedChannel => savedChannel !== channel)
+        setLockedChannels(lockedChannels)
         icon.setAttribute('fill', '#aaa')
         enableUnfollowIfPresent()
       } else {
-        arr.push(channel)
-        setLockedChannels(arr)
+        lockedChannels.push(channel)
+        setLockedChannels(lockedChannels)
         icon.setAttribute('fill', '#9147ff')
         disableUnfollowIfSaved()
       }
-    })
+    }
+    icon.addEventListener('click', handleHeaderIconClick)
     anchor.parentNode.insertBefore(icon, anchor.nextSibling)
   }
 
@@ -125,6 +178,7 @@
   // 5) Build “Stop Unfollow” Modal
   //////////////////////////////
   let sortMode = 'latest'
+  let settingsObserver
   function buildPanel() {
     if (document.getElementById('tm-lock-panel')) return;
     const panel = document.createElement('div');
@@ -152,6 +206,14 @@
         display: flex;
         flex-direction: column;
         overflow: hidden;
+      }
+      .tm-version {
+        position: absolute;
+        top: 29px;
+        left: 14px;
+        font-size: 12px;
+        pointer-events: none;
+        font-family: 'Brush Script MT', serif;
       }
       /* Header */
       #tm-lock-panel .tm-header {
@@ -368,13 +430,36 @@
     `);
 
     // Header
-    const header = document.createElement('div'); header.className = 'tm-header';
-    const title = document.createElement('span'); title.className = 'tm-title'; title.textContent = 'Saved Channels (Count: 0)';
-    const closeBtn = document.createElement('button'); closeBtn.className = 'tm-close-btn'; closeBtn.title = 'Close'; closeBtn.innerHTML = '&times;';
-    closeBtn.addEventListener('click', () => { panel.style.display = 'none'; });
-    header.append(title, closeBtn);
-    panel.append(header);
-    makeDraggable(panel, header);
+  const header = document.createElement('div'); header.className = 'tm-header';
+  const title = document.createElement('span'); title.className = 'tm-title'; title.textContent = 'Saved Channels (Count: 0)';
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'tm-close-btn';
+  closeBtn.title = 'Close';
+  closeBtn.innerHTML = '&times;';
+  function handleClosePanel() { panel.style.display = 'none' }
+  closeBtn.addEventListener('click', handleClosePanel);
+  header.append(title, closeBtn);
+  panel.append(header);
+  const updatePrompt = document.createElement('div');
+  updatePrompt.id = 'tm-update-prompt';
+  updatePrompt.style.display = 'none';
+  updatePrompt.style.background = '#9147ff';
+  updatePrompt.style.color = '#fff';
+  updatePrompt.style.padding = '6px 10px';
+  updatePrompt.style.fontSize = '13px';
+  updatePrompt.style.textAlign = 'center';
+  const updateLink = document.createElement('a');
+  updateLink.id = 'tm-update-link';
+  updateLink.target = '_blank';
+  updateLink.style.color = '#fff';
+  updateLink.style.textDecoration = 'underline';
+  updatePrompt.append('Update available: ', updateLink);
+  panel.append(updatePrompt);
+  const versionDiv = document.createElement('div');
+  versionDiv.className = 'tm-version';
+  versionDiv.textContent = `v${GM_info?.script?.version}`;
+  header.append(versionDiv);
+  makeDraggable(panel, header);
 
     // Toast
     const toast = document.createElement('div'); toast.id = 'tm-toast'; panel.append(toast);
@@ -424,11 +509,31 @@
     body.append(listDiv);
 
     // Event bindings
-    addBtn.addEventListener('click', async () => onAddByText());
-    addCurrent.addEventListener('click', async () => onAddCurrent());
-    searchInput.addEventListener('input', () => { clearBtn.style.display = searchInput.value ? 'block' : 'none'; refreshListUI(); applySearchFilter(); });
-    clearBtn.addEventListener('click', () => { searchInput.value = ''; clearBtn.style.display = 'none'; refreshListUI(); applySearchFilter(); searchInput.focus(); });
-    sortSelect.addEventListener('change', e => { sortMode = e.target.value; refreshListUI(); applySearchFilter(); });
+    async function handleAddButtonClick() { await onAddByText() }
+    async function handleAddCurrentClick() { await onAddCurrent() }
+    function handleSearchInputChange() {
+      clearBtn.style.display = searchInput.value ? 'block' : 'none'
+      refreshListUI()
+      applySearchFilter()
+    }
+    function handleClearSearchClick() {
+      searchInput.value = ''
+      clearBtn.style.display = 'none'
+      refreshListUI()
+      applySearchFilter()
+      searchInput.focus()
+    }
+    function handleSortChange(e) {
+      sortMode = e.target.value
+      refreshListUI()
+      applySearchFilter()
+    }
+
+    addBtn.addEventListener('click', handleAddButtonClick)
+    addCurrent.addEventListener('click', handleAddCurrentClick)
+    searchInput.addEventListener('input', handleSearchInputChange)
+    clearBtn.addEventListener('click', handleClearSearchClick)
+    sortSelect.addEventListener('change', handleSortChange)
 
     // Initialize state
     refreshListUI(); updateAddCurrentButtonState(); applySearchFilter();
@@ -453,21 +558,24 @@ async function onAddCurrent() {
     updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); disableUnfollowIfSaved()
 }
 
-function showToast(message, color) {
+  function showToast(message, color) {
     const toast = document.getElementById('tm-toast')
     if (!toast) return
     toast.textContent = message
     toast.className = color // “red” or “green”
+    toast.classList.remove('show')
+    void toast.offsetWidth // restart animation
     toast.classList.add('show')
-    toast.addEventListener('animationend', () => {
+    function handleAnimationEnd() {
       toast.classList.remove('show')
-    }, { once: true })
+    }
+    toast.addEventListener('animationend', handleAnimationEnd, { once: true })
   }
 
   function makeDraggable(dragElement, handle) {
     let offsetX = 0, offsetY = 0, isDragging = false
     handle.style.cursor = 'move'
-    handle.addEventListener('mousedown', e => {
+    function onMouseDown(e) {
       e.preventDefault()
       isDragging = true
       const rect = dragElement.getBoundingClientRect()
@@ -475,7 +583,8 @@ function showToast(message, color) {
       offsetY = e.clientY - rect.top
       document.addEventListener('mousemove', onMouseMove)
       document.addEventListener('mouseup', onMouseUp)
-    })
+    }
+    handle.addEventListener('mousedown', onMouseDown)
     function onMouseMove(e) {
       if (!isDragging) return
       let newLeft = e.clientX - offsetX
@@ -501,47 +610,48 @@ function showToast(message, color) {
     const ul = document.getElementById('tm-locked-list')
     if (!ul) return
     ul.innerHTML = ''
-    const savedArr = getLockedChannels().slice()
+    const savedChannels = getLockedChannels().slice()
 
     let ordered
     switch (sortMode) {
       case 'alpha-asc':
-        ordered = savedArr.slice().sort((a, b) => a.localeCompare(b))
+        ordered = savedChannels.slice().sort((a, b) => a.localeCompare(b))
         break
       case 'alpha-desc':
-        ordered = savedArr.slice().sort((a, b) => b.localeCompare(a))
+        ordered = savedChannels.slice().sort((a, b) => b.localeCompare(a))
         break
       case 'first':
-        ordered = savedArr.slice()
+        ordered = savedChannels.slice()
         break
       case 'latest':
       default:
-        ordered = savedArr.slice().reverse()
+        ordered = savedChannels.slice().reverse()
     }
 
-    ordered.forEach(ch => {
+    ordered.forEach(channelName => {
       const li = document.createElement('li')
       const span = document.createElement('span')
-      span.textContent = ch
+      span.textContent = channelName
       li.appendChild(span)
       const removeBtn = document.createElement('button')
       removeBtn.textContent = '✕'
       removeBtn.className = 'remove-btn'
-      removeBtn.title = `Remove "${ch}" from Saved Channels`
-      removeBtn.addEventListener('click', async () => {
-        await removeChannel(ch)
-        showToast(`${ch} removed from Saved Channels`, 'red')
+      removeBtn.title = `Remove "${channelName}" from Saved Channels`
+      async function handleRemoveClick() {
+        await removeChannel(channelName)
+        showToast(`${channelName} removed from Saved Channels`, 'red')
         updateAddCurrentButtonState()
         refreshListUI()
         applySearchFilter()
-      })
+      }
+      removeBtn.addEventListener('click', handleRemoveClick)
       li.appendChild(removeBtn)
       ul.appendChild(li)
     })
 
     const titleEl = document.querySelector('#tm-lock-panel .tm-title')
     if (titleEl) {
-      titleEl.textContent = `Saved Channels (Count: ${savedArr.length})`
+      titleEl.textContent = `Saved Channels (Count: ${savedChannels.length})`
     }
   }
 
@@ -573,17 +683,17 @@ function showToast(message, color) {
   }
 
   async function addChannel(channelName) {
-    let arr = getLockedChannels()
-    if (arr.includes(channelName)) return false
-    arr.push(channelName)
-    setLockedChannels(arr)
+    let lockedChannels = getLockedChannels()
+    if (lockedChannels.includes(channelName)) return false
+    lockedChannels.push(channelName)
+    setLockedChannels(lockedChannels)
     return true
   }
 
   async function removeChannel(channelName) {
-    let arr = getLockedChannels()
-    arr = arr.filter(ch => ch !== channelName)
-    setLockedChannels(arr)
+    let lockedChannels = getLockedChannels()
+    lockedChannels = lockedChannels.filter(savedChannel => savedChannel !== channelName)
+    setLockedChannels(lockedChannels)
     const current = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
     if (current === channelName) {
       enableUnfollowIfPresent()
@@ -660,7 +770,7 @@ function showToast(message, color) {
     link.appendChild(dropdownContainer)
 
     // Click opens modal
-    link.addEventListener('click', e => {
+    function handleMenuClick(e) {
       e.preventDefault()
       const panel = document.getElementById('tm-lock-panel')
       if (panel) {
@@ -673,13 +783,15 @@ function showToast(message, color) {
           if (input) input.focus()
         }, 100)
       }
-    })
+    }
+    link.addEventListener('click', handleMenuClick)
 
     container.appendChild(link)
   }
 
   function hookSettingsDropdown() {
-    domObserver.on(
+    if (settingsObserver) settingsObserver.disconnect()
+    settingsObserver = domObserver.on(
       'a[data-a-target="settings-dropdown-link"], ' +
       'a[href="https://www.twitch.tv/settings/profile"], ' +
       'button[data-test-selector="user-menu-dropdown__settings-link"], ' +
@@ -702,7 +814,9 @@ function showToast(message, color) {
     function onLocationChange() {
       disableUnfollowIfSaved()
       injectHeaderLockIcon()
+      if (settingsObserver) settingsObserver.disconnect()
       hookSettingsDropdown()
+      updateAddCurrentButtonState()
     }
     // Patch pushState only once
     if (!history.pushState.__stopUnfollowPatched) {
