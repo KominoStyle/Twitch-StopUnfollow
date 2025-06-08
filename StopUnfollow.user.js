@@ -401,9 +401,7 @@
     searchIcon.setAttribute('width', '14');
     searchIcon.setAttribute('height', '14');
     const searchPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    searchPath.setAttribute('d',
-      'M3.75 10.5a6.75 6.75 0 1113.5 0 6.75 6.75 0 01-13.5 0zm12.638 6.638a8.25 8.25 0 111.061-1.061l3.878 3.879a.75.75 0 11-1.061 1.06l-3.878-3.878z'
-    );
+    searchPath.setAttribute('d','M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z');
     searchIcon.appendChild(searchPath);
     const searchInput = document.createElement('input'); searchInput.type = 'text'; searchInput.id = 'tm-search-input'; searchInput.placeholder = 'Search…';
     const clearBtn = document.createElement('span'); clearBtn.id = 'tm-clear-btn'; clearBtn.className = 'tm-clear-btn'; clearBtn.textContent = '✕';
