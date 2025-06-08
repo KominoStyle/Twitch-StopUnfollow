@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.45
+// @version      1.46
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
@@ -19,6 +19,7 @@
   'use strict'
 
   const RAW_URL = 'https://raw.githubusercontent.com/KominoStyle/Twitch-StopUnfollow/main/StopUnfollow.user.js'
+  let latestVersion = null
 
   function compareVersions(a, b) {
     const pa = a.split('.').map(Number)
@@ -46,39 +47,24 @@
         if (res.status !== 200) return
         const match = res.responseText.match(/@version\s+([\d.]+)/)
         if (match && compareVersions(match[1], cur) > 0) {
-          const box = document.createElement('div')
-          box.id = 'tm-update-box'
-          const btn = document.createElement('button')
-          btn.textContent = 'Install'
-          btn.style.marginLeft = '8px'
-          btn.style.background = '#fff'
-          btn.style.color = '#9147ff'
-          btn.style.border = 'none'
-          btn.style.padding = '2px 6px'
-          btn.style.borderRadius = '3px'
-          btn.style.cursor = 'pointer'
-          btn.addEventListener('click', () => {
-            window.open(RAW_URL, '_blank')
-            box.remove()
-          })
-          box.textContent = 'Stop Unfollow update available'
-          box.appendChild(btn)
-          box.style.position = 'fixed'
-          box.style.bottom = '20px'
-          box.style.right = '20px'
-          box.style.background = '#9147ff'
-          box.style.color = '#fff'
-          box.style.padding = '6px 10px'
-          box.style.borderRadius = '4px'
-          box.style.zIndex = '1000000'
-          box.style.fontSize = '13px'
-          document.body.appendChild(box)
+          latestVersion = match[1]
+          showUpdatePrompt()
         }
       }
     })
   }
 
   checkForUpdates()
+
+  function showUpdatePrompt() {
+    const panel = document.getElementById('tm-lock-panel')
+    const container = document.getElementById('tm-update-prompt')
+    const link = document.getElementById('tm-update-link')
+    if (!panel || !container || !link || !latestVersion) return
+    link.textContent = `Install v${latestVersion}`
+    link.href = RAW_URL
+    container.style.display = 'block'
+  }
 
   //////////////////////////////
   // 1) domObserver Helper
@@ -436,17 +422,32 @@
     `);
 
     // Header
-    const header = document.createElement('div'); header.className = 'tm-header';
-    const title = document.createElement('span'); title.className = 'tm-title'; title.textContent = 'Saved Channels (Count: 0)';
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'tm-close-btn';
-    closeBtn.title = 'Close';
-    closeBtn.innerHTML = '&times;';
-    function handleClosePanel() { panel.style.display = 'none' }
-    closeBtn.addEventListener('click', handleClosePanel);
-    header.append(title, closeBtn);
-    panel.append(header);
-    makeDraggable(panel, header);
+  const header = document.createElement('div'); header.className = 'tm-header';
+  const title = document.createElement('span'); title.className = 'tm-title'; title.textContent = 'Saved Channels (Count: 0)';
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'tm-close-btn';
+  closeBtn.title = 'Close';
+  closeBtn.innerHTML = '&times;';
+  function handleClosePanel() { panel.style.display = 'none' }
+  closeBtn.addEventListener('click', handleClosePanel);
+  header.append(title, closeBtn);
+  panel.append(header);
+  const updatePrompt = document.createElement('div');
+  updatePrompt.id = 'tm-update-prompt';
+  updatePrompt.style.display = 'none';
+  updatePrompt.style.background = '#9147ff';
+  updatePrompt.style.color = '#fff';
+  updatePrompt.style.padding = '6px 10px';
+  updatePrompt.style.fontSize = '13px';
+  updatePrompt.style.textAlign = 'center';
+  const updateLink = document.createElement('a');
+  updateLink.id = 'tm-update-link';
+  updateLink.target = '_blank';
+  updateLink.style.color = '#fff';
+  updateLink.style.textDecoration = 'underline';
+  updatePrompt.append('Update available: ', updateLink);
+  panel.append(updatePrompt);
+  makeDraggable(panel, header);
 
     // Toast
     const toast = document.createElement('div'); toast.id = 'tm-toast'; panel.append(toast);
@@ -524,6 +525,7 @@
 
     // Initialize state
     refreshListUI(); updateAddCurrentButtonState(); applySearchFilter();
+    showUpdatePrompt()
   }
   // Drag & Drop already bound within buildPanel
 
