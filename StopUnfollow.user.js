@@ -703,6 +703,7 @@ function showToast(message, color) {
       disableUnfollowIfSaved()
       injectHeaderLockIcon()
       hookSettingsDropdown()
+      updateAddCurrentButtonState()
     }
     // Patch pushState only once
     if (!history.pushState.__stopUnfollowPatched) {
