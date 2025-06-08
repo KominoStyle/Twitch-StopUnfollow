@@ -126,6 +126,7 @@
   // 5) Build “Stop Unfollow” Modal
   //////////////////////////////
   let sortMode = 'latest'
+  let settingsObserver
   function buildPanel() {
     if (document.getElementById('tm-lock-panel')) return;
     const panel = document.createElement('div');
@@ -478,11 +479,13 @@ async function onAddCurrent() {
     updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); disableUnfollowIfSaved()
 }
 
-function showToast(message, color) {
+  function showToast(message, color) {
     const toast = document.getElementById('tm-toast')
     if (!toast) return
     toast.textContent = message
     toast.className = color // “red” or “green”
+    toast.classList.remove('show')
+    void toast.offsetWidth // restart animation
     toast.classList.add('show')
     function handleAnimationEnd() {
       toast.classList.remove('show')
@@ -708,7 +711,8 @@ function showToast(message, color) {
   }
 
   function hookSettingsDropdown() {
-    domObserver.on(
+    if (settingsObserver) settingsObserver.disconnect()
+    settingsObserver = domObserver.on(
       'a[data-a-target="settings-dropdown-link"], ' +
       'a[href="https://www.twitch.tv/settings/profile"], ' +
       'button[data-test-selector="user-menu-dropdown__settings-link"], ' +
@@ -731,6 +735,7 @@ function showToast(message, color) {
     function onLocationChange() {
       disableUnfollowIfSaved()
       injectHeaderLockIcon()
+      if (settingsObserver) settingsObserver.disconnect()
       hookSettingsDropdown()
       updateAddCurrentButtonState()
     }
