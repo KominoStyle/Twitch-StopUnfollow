@@ -1,18 +1,66 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.43
+// @version      1.44
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addStyle
+// @grant        GM_xmlhttpRequest
 // @connect      api.twitch.tv
+// @connect      raw.githubusercontent.com
+// @updateURL    https://raw.githubusercontent.com/KominoStyle/Twitch-StopUnfollow/main/StopUnfollow.user.js
+// @downloadURL  https://raw.githubusercontent.com/KominoStyle/Twitch-StopUnfollow/main/StopUnfollow.user.js
 // @run-at       document-idle
 // ==/UserScript==
 
 (function () {
   'use strict'
+
+  const RAW_URL = 'https://raw.githubusercontent.com/KominoStyle/Twitch-StopUnfollow/main/StopUnfollow.user.js'
+
+  function checkForUpdates() {
+    if (typeof GM_xmlhttpRequest !== 'function' || !GM_info?.script?.version) return
+    GM_xmlhttpRequest({
+      method: 'GET',
+      url: RAW_URL + '?_=' + Date.now(),
+      onload(res) {
+        const match = res.responseText.match(/@version\s+([\d.]+)/)
+        if (match && match[1] !== GM_info.script.version) {
+          const box = document.createElement('div')
+          box.id = 'tm-update-box'
+          const btn = document.createElement('button')
+          btn.textContent = 'Install'
+          btn.style.marginLeft = '8px'
+          btn.style.background = '#fff'
+          btn.style.color = '#9147ff'
+          btn.style.border = 'none'
+          btn.style.padding = '2px 6px'
+          btn.style.borderRadius = '3px'
+          btn.style.cursor = 'pointer'
+          btn.addEventListener('click', () => {
+            window.open(RAW_URL, '_blank')
+            box.remove()
+          })
+          box.textContent = 'Stop Unfollow update available'
+          box.appendChild(btn)
+          box.style.position = 'fixed'
+          box.style.bottom = '20px'
+          box.style.right = '20px'
+          box.style.background = '#9147ff'
+          box.style.color = '#fff'
+          box.style.padding = '6px 10px'
+          box.style.borderRadius = '4px'
+          box.style.zIndex = '1000000'
+          box.style.fontSize = '13px'
+          document.body.appendChild(box)
+        }
+      }
+    })
+  }
+
+  checkForUpdates()
 
   //////////////////////////////
   // 1) domObserver Helper
