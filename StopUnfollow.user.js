@@ -525,7 +525,6 @@
 
     // Initialize state
     refreshListUI(); updateAddCurrentButtonState(); applySearchFilter();
-    showUpdatePrompt()
   }
   // Drag & Drop already bound within buildPanel
 
