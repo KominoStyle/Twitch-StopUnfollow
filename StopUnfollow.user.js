@@ -396,8 +396,6 @@
     // List Header
     const listHeader = document.createElement('div'); listHeader.className = 'tm-list-header';
     const searchWrapper = document.createElement('div'); searchWrapper.className = 'tm-search-wrapper';
-    const searchIcon = document.createElement('svg');
-    searchIcon.setAttribute('viewBox','0 0 24 24');
     const searchPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     searchPath.setAttribute('d','M3.75 10.5a6.75 6.75 0 1113.5 0 6.75 6.75 0 01-13.5 0zm12.638 6.638a8.25 8.25 0 111.061-1.061l3.878 3.879a.75.75 0 11-1.061 1.06l-3.878-3.878z');
     searchIcon.append(searchPath);
