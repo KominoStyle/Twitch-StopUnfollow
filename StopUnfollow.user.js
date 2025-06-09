@@ -293,10 +293,9 @@
       .tm-import-export {
         display: flex;
         gap: 6px;
-        margin-top: 6px;
       }
-      .tm-import-export button {
-        background: #444;
+      #tm-import-btn {
+        background: #1e69ff;
         border: none;
         color: #fff;
         padding: 6px 10px;
@@ -304,7 +303,17 @@
         cursor: pointer;
         font-size: 12px;
       }
-      .tm-import-export button:hover { background: #555; }
+      #tm-import-btn:hover { background: #0d5fe4; }
+      #tm-export-btn {
+        background: #28a745;
+        border: none;
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      #tm-export-btn:hover { background: #218838; }
       .tm-add-controls {
         display: flex;
         gap: 6px;
@@ -355,6 +364,11 @@
       .tm-list-top {
         display: flex;
         align-items: center;
+        gap: 6px;
+      }
+      .tm-list-actions {
+        display: flex;
+        justify-content: flex-end;
         gap: 6px;
       }
       .tm-search-wrapper {
@@ -541,16 +555,7 @@
     const addActions = document.createElement('div');
     addActions.className = 'tm-add-actions';
     addActions.append(addCurrent, actionToggle);
-    const importExport = document.createElement('div');
-    importExport.className = 'tm-import-export';
-    const importBtn = document.createElement('button');
-    importBtn.id = 'tm-import-btn';
-    importBtn.textContent = 'Import';
-    const exportBtn = document.createElement('button');
-    exportBtn.id = 'tm-export-btn';
-    exportBtn.textContent = 'Export';
-    importExport.append(importBtn, exportBtn);
-    addSection.append(controls, addActions, importExport);
+    addSection.append(controls, addActions);
     body.append(addSection);
 
     // List Header
@@ -579,11 +584,24 @@
     const listTop = document.createElement('div');
     listTop.className = 'tm-list-top';
     listTop.append(searchWrapper, sortSelect);
+
     const deleteSelected = document.createElement('button');
     deleteSelected.id = 'tm-delete-selected';
     deleteSelected.textContent = 'Delete Selected';
     deleteSelected.style.display = 'none';
-    listHeader.append(listTop, deleteSelected);
+
+    const importBtn = document.createElement('button');
+    importBtn.id = 'tm-import-btn';
+    importBtn.textContent = 'Import';
+    const exportBtn = document.createElement('button');
+    exportBtn.id = 'tm-export-btn';
+    exportBtn.textContent = 'Export';
+
+    const listActions = document.createElement('div');
+    listActions.className = 'tm-list-actions tm-import-export';
+    listActions.append(deleteSelected, importBtn, exportBtn);
+
+    listHeader.append(listTop, listActions);
     body.append(listHeader);
 
     // List
@@ -655,15 +673,22 @@
       applySearchFilter()
     }
     function handleExportClick() {
-      const list = getLockedChannels()
+      let list
+      const checked = Array.from(document.querySelectorAll('.tm-select-checkbox:checked'))
+      if (checked.length > 0) {
+        list = checked.map(cb => cb.dataset.name)
+      } else {
+        list = getLockedChannels()
+      }
       if (list.length === 0) { showToast('Nothing to export', 'red'); return }
-      navigator.clipboard.writeText(list.join('\n')).then(
+      const json = JSON.stringify(list, null, 2)
+      navigator.clipboard.writeText(json).then(
         () => showToast('Copied to clipboard', 'green'),
         () => showToast('Failed to copy', 'red')
       )
     }
     async function handleImportClick() {
-      const text = prompt('Paste channel list (comma, space or newline separated):')
+      const text = prompt('Paste channel list (JSON array or comma/space/newline separated):')
       if (!text) return
       let parts
       try {
@@ -853,8 +878,12 @@ async function onAddCurrent() {
   function updateDeleteSelectedButtonState() {
     const btn = document.getElementById('tm-delete-selected')
     const toggle = document.getElementById('tm-action-toggle')
+    const importBtn = document.getElementById('tm-import-btn')
+    const exportBtn = document.getElementById('tm-export-btn')
     if (btn) btn.disabled = getLockedChannels().length === 0
     if (toggle) toggle.disabled = getLockedChannels().length === 0
+    if (importBtn) importBtn.disabled = false
+    if (exportBtn) exportBtn.disabled = getLockedChannels().length === 0
   }
 
   async function addChannel(channelName) {
