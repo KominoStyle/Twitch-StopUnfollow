@@ -378,6 +378,17 @@
         font-size: 12px;
         cursor: pointer;
       }
+      /* Delete selected button */
+      #tm-delete-selected {
+        background: #d73a49;
+        border: none;
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      #tm-delete-selected:hover { background: #c5303e; }
       #tm-sort-select option { background: #0e0e10; color: #fff; }
       /* Channel List */
       .tm-list {
@@ -394,6 +405,10 @@
         padding: 6px 0;
         border-bottom: 1px solid #333;
         font-size: 13px;
+      }
+      .tm-select-checkbox {
+        margin-right: 6px;
+        cursor: pointer;
       }
       .tm-list li button.remove-btn {
         background: transparent;
@@ -500,7 +515,10 @@
       if (val === sortMode) opt.selected = true;
       sortSelect.append(opt);
     });
-    listHeader.append(searchWrapper, sortSelect);
+    const deleteSelected = document.createElement('button');
+    deleteSelected.id = 'tm-delete-selected';
+    deleteSelected.textContent = 'Remove Selected';
+    listHeader.append(searchWrapper, sortSelect, deleteSelected);
     body.append(listHeader);
 
     // List
@@ -528,15 +546,36 @@
       refreshListUI()
       applySearchFilter()
     }
+    async function handleDeleteSelectedClick() {
+      const checkboxes = Array.from(document.querySelectorAll('.tm-select-checkbox:checked'))
+      let targets
+      if (checkboxes.length === 0) {
+        targets = getLockedChannels()
+        if (targets.length === 0) { showToast('List already empty', 'red'); return }
+        if (!confirm('Clear entire Saved Channels list?')) return
+      } else {
+        targets = checkboxes.map(cb => cb.dataset.name)
+        if (!confirm(`Remove ${targets.length} selected channel(s)?`)) return
+      }
+      for (const name of targets) {
+        await removeChannel(name)
+      }
+      showToast(`${targets.length} channel${targets.length===1?'':'s'} removed`, 'red')
+      updateAddCurrentButtonState()
+      refreshListUI()
+      applySearchFilter()
+      updateDeleteSelectedButtonState()
+    }
 
     addBtn.addEventListener('click', handleAddButtonClick)
     addCurrent.addEventListener('click', handleAddCurrentClick)
     searchInput.addEventListener('input', handleSearchInputChange)
     clearBtn.addEventListener('click', handleClearSearchClick)
     sortSelect.addEventListener('change', handleSortChange)
+    deleteSelected.addEventListener('click', handleDeleteSelectedClick)
 
     // Initialize state
-    refreshListUI(); updateAddCurrentButtonState(); applySearchFilter();
+    refreshListUI(); updateAddCurrentButtonState(); applySearchFilter(); updateDeleteSelectedButtonState();
   }
   // Drag & Drop already bound within buildPanel
 
@@ -547,7 +586,7 @@
     showToast('Checking username…', 'green')
     const added = await addChannel(raw)
     showToast(added ? `${raw} added` : '✓ Already saved', added ? 'green' : 'red')
-    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); disableUnfollowIfSaved()
+    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
 }
 
 async function onAddCurrent() {
@@ -555,7 +594,7 @@ async function onAddCurrent() {
     if (!current) { showToast('Not on a channel page.', 'red'); return }
     const added = await addChannel(current)
     showToast(added ? `${current} added` : '✓ Already saved', added ? 'green' : 'red')
-    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); disableUnfollowIfSaved()
+    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
 }
 
   function showToast(message, color) {
@@ -630,8 +669,13 @@ async function onAddCurrent() {
 
     ordered.forEach(channelName => {
       const li = document.createElement('li')
+      const checkbox = document.createElement('input')
+      checkbox.type = 'checkbox'
+      checkbox.className = 'tm-select-checkbox'
+      checkbox.dataset.name = channelName
       const span = document.createElement('span')
       span.textContent = channelName
+      li.appendChild(checkbox)
       li.appendChild(span)
       const removeBtn = document.createElement('button')
       removeBtn.textContent = '✕'
@@ -653,6 +697,7 @@ async function onAddCurrent() {
     if (titleEl) {
       titleEl.textContent = `Saved Channels (Count: ${savedChannels.length})`
     }
+    updateDeleteSelectedButtonState()
   }
 
   function applySearchFilter() {
@@ -680,6 +725,12 @@ async function onAddCurrent() {
       btn.disabled = false
       btn.style.cursor = 'pointer'
     }
+  }
+
+  function updateDeleteSelectedButtonState() {
+    const btn = document.getElementById('tm-delete-selected')
+    if (!btn) return
+    btn.disabled = getLockedChannels().length === 0
   }
 
   async function addChannel(channelName) {
