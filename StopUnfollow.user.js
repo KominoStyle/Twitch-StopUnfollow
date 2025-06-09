@@ -709,16 +709,18 @@
         )
       }
       async function handleImportClick() {
-        const text = prompt('Paste exported channel list (JSON)')
+        const text = prompt('Paste exported list (encoded JSON)')
         if (!text) return
         let parts
         try {
           const parsed = JSON.parse(text)
-          if (!Array.isArray(parsed) || !parsed.every(v => Array.isArray(v))) throw new Error()
+          if (!Array.isArray(parsed) || !parsed.every(arr => Array.isArray(arr) && arr.every(n => typeof n === 'number'))) {
+            throw new Error()
+          }
           parts = parsed.map(bits => decodeBits(bits))
           if (parts.some(v => !v)) throw new Error()
         } catch {
-          showToast('Invalid list', 'red')
+          showToast('Invalid export data', 'red')
           return
         }
         let added = 0
