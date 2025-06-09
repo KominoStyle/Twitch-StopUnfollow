@@ -587,7 +587,7 @@
     }
     function enterSelectionMode() {
       selectionMode = true
-      actionToggle.textContent = 'Cancel Action Mode'
+      actionToggle.textContent = 'Cancel'
       deleteSelected.style.display = 'inline-block'
       refreshListUI()
       updateDeleteSelectedButtonState()
