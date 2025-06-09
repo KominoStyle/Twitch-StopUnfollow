@@ -94,6 +94,7 @@
   // 2) Storage Helpers
   //////////////////////////////
   const STORAGE_KEY_CHANNELS = 'lockedTwitchChannels'
+  const ENCODE_SHIFT = 13
   function getLockedChannels() {
     const raw = GM_getValue(STORAGE_KEY_CHANNELS)
     return Array.isArray(raw) ? raw : []
@@ -683,14 +684,14 @@
       applySearchFilter()
     }
       function encodeName(name) {
-        return Array.from(name).map(ch => ch.charCodeAt(0))
+        return Array.from(name).map(ch => ch.charCodeAt(0) + ENCODE_SHIFT)
       }
       function decodeBits(bits) {
         if (!Array.isArray(bits)) return null
         for (const b of bits) {
           if (typeof b !== 'number') return null
         }
-        return String.fromCharCode(...bits)
+        return String.fromCharCode(...bits.map(n => n - ENCODE_SHIFT))
       }
       function handleExportClick() {
         let list
