@@ -290,6 +290,21 @@
         align-items: center;
         gap: 6px;
       }
+      .tm-import-export {
+        display: flex;
+        gap: 6px;
+        margin-top: 6px;
+      }
+      .tm-import-export button {
+        background: #444;
+        border: none;
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .tm-import-export button:hover { background: #555; }
       .tm-add-controls {
         display: flex;
         gap: 6px;
@@ -391,7 +406,7 @@
       }
       /* Action mode toggle */
       #tm-action-toggle {
-        background: #444;
+        background: #9147ff;
         border: none;
         color: #fff;
         padding: 6px 10px;
@@ -399,7 +414,9 @@
         cursor: pointer;
         font-size: 12px;
       }
-      #tm-action-toggle:hover { background: #555; }
+      #tm-action-toggle:hover { background: #772ce8; }
+      #tm-action-toggle.cancel { background: #444; }
+      #tm-action-toggle.cancel:hover { background: #555; }
       /* Delete selected button */
       #tm-delete-selected {
         background: #d73a49;
@@ -524,7 +541,16 @@
     const addActions = document.createElement('div');
     addActions.className = 'tm-add-actions';
     addActions.append(addCurrent, actionToggle);
-    addSection.append(controls, addActions);
+    const importExport = document.createElement('div');
+    importExport.className = 'tm-import-export';
+    const importBtn = document.createElement('button');
+    importBtn.id = 'tm-import-btn';
+    importBtn.textContent = 'Import';
+    const exportBtn = document.createElement('button');
+    exportBtn.id = 'tm-export-btn';
+    exportBtn.textContent = 'Export';
+    importExport.append(importBtn, exportBtn);
+    addSection.append(controls, addActions, importExport);
     body.append(addSection);
 
     // List Header
@@ -588,6 +614,7 @@
     function enterSelectionMode() {
       selectionMode = true
       actionToggle.textContent = 'Cancel'
+      actionToggle.classList.add('cancel')
       deleteSelected.style.display = 'inline-block'
       refreshListUI()
       updateDeleteSelectedButtonState()
@@ -595,6 +622,7 @@
     function exitSelectionMode() {
       selectionMode = false
       actionToggle.textContent = 'Action'
+      actionToggle.classList.remove('cancel')
       deleteSelected.style.display = 'none'
       refreshListUI()
       updateDeleteSelectedButtonState()
@@ -626,6 +654,36 @@
       updateAddCurrentButtonState()
       applySearchFilter()
     }
+    function handleExportClick() {
+      const list = getLockedChannels()
+      if (list.length === 0) { showToast('Nothing to export', 'red'); return }
+      navigator.clipboard.writeText(list.join('\n')).then(
+        () => showToast('Copied to clipboard', 'green'),
+        () => showToast('Failed to copy', 'red')
+      )
+    }
+    async function handleImportClick() {
+      const text = prompt('Paste channel list (comma, space or newline separated):')
+      if (!text) return
+      let parts
+      try {
+        const parsed = JSON.parse(text)
+        parts = Array.isArray(parsed) ? parsed : []
+      } catch {
+        parts = text.split(/[,\s]+/)
+      }
+      let added = 0
+      for (const name of parts) {
+        const cleaned = name.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
+        if (!cleaned) continue
+        if (await addChannel(cleaned)) added++
+      }
+      showToast(added ? `${added} added` : 'No new channels', added ? 'green' : 'red')
+      updateAddCurrentButtonState()
+      refreshListUI()
+      applySearchFilter()
+      updateDeleteSelectedButtonState()
+    }
     addBtn.addEventListener('click', handleAddButtonClick)
     addCurrent.addEventListener('click', handleAddCurrentClick)
     searchInput.addEventListener('input', handleSearchInputChange)
@@ -633,6 +691,8 @@
     sortSelect.addEventListener('change', handleSortChange)
     actionToggle.addEventListener('click', handleActionToggleClick)
     deleteSelected.addEventListener('click', handleDeleteSelectedClick)
+    importBtn.addEventListener('click', handleImportClick)
+    exportBtn.addEventListener('click', handleExportClick)
 
     // Initialize state
     refreshListUI(); updateAddCurrentButtonState(); applySearchFilter(); updateDeleteSelectedButtonState();
