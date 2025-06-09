@@ -284,6 +284,12 @@
         background: #0e0e10;
         border-bottom: 1px solid #333;
       }
+      .tm-add-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+      }
       .tm-add-controls {
         display: flex;
         gap: 6px;
@@ -310,7 +316,6 @@
         background: #772ce8;
       }
       .tm-add-current {
-        align-self: flex-start;
         background: #444;
         border: none;
         color: #fff;
@@ -326,11 +331,16 @@
       /* List Header */
       .tm-list-header {
         display: flex;
-        align-items: center;
+        flex-direction: column;
         gap: 6px;
         padding: 8px 12px;
         background: #0e0e10;
         border-bottom: 1px solid #333;
+      }
+      .tm-list-top {
+        display: flex;
+        align-items: center;
+        gap: 6px;
       }
       .tm-search-wrapper {
         position: relative;
@@ -381,7 +391,6 @@
       }
       /* Bulk delete toggle */
       #tm-bulk-toggle {
-        align-self: flex-start;
         background: #444;
         border: none;
         color: #fff;
@@ -400,6 +409,7 @@
         border-radius: 4px;
         font-size: 12px;
         cursor: pointer;
+        align-self: flex-end;
       }
       #tm-delete-selected:hover { background: #c5303e; }
       /* Multi-select checkboxes */
@@ -504,15 +514,17 @@
     const input = document.createElement('input'); input.type = 'text'; input.id = 'tm-channel-input'; input.placeholder = 'e.g. streamername'; input.disabled = true;
     const addBtn = document.createElement('button'); addBtn.className = 'add-btn'; addBtn.id = 'tm-add-btn'; addBtn.textContent = 'Add'; addBtn.disabled = true;
     controls.append(input, addBtn);
-    const addCurrent = document.createElement('button'); addCurrent.className = 'tm-add-current'; addCurrent.id = 'tm-add-current'; addCurrent.textContent = '+ Add Current Channel';
+    const addCurrent = document.createElement('button');
+    addCurrent.className = 'tm-add-current';
+    addCurrent.id = 'tm-add-current';
+    addCurrent.textContent = '+ Add Current Channel';
     const bulkToggle = document.createElement('button');
     bulkToggle.id = 'tm-bulk-toggle';
     bulkToggle.textContent = 'Bulk Delete';
-    const deleteSelected = document.createElement('button');
-    deleteSelected.id = 'tm-delete-selected';
-    deleteSelected.textContent = 'Delete Selected';
-    deleteSelected.style.display = 'none';
-    addSection.append(controls, addCurrent, bulkToggle, deleteSelected);
+    const addActions = document.createElement('div');
+    addActions.className = 'tm-add-actions';
+    addActions.append(addCurrent, bulkToggle);
+    addSection.append(controls, addActions);
     body.append(addSection);
 
     // List Header
@@ -538,7 +550,14 @@
       if (val === sortMode) opt.selected = true;
       sortSelect.append(opt);
     });
-    listHeader.append(searchWrapper, sortSelect);
+    const listTop = document.createElement('div');
+    listTop.className = 'tm-list-top';
+    listTop.append(searchWrapper, sortSelect);
+    const deleteSelected = document.createElement('button');
+    deleteSelected.id = 'tm-delete-selected';
+    deleteSelected.textContent = 'Delete Selected';
+    deleteSelected.style.display = 'none';
+    listHeader.append(listTop, deleteSelected);
     body.append(listHeader);
 
     // List
