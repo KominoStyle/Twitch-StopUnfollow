@@ -178,6 +178,7 @@
   // 5) Build “Stop Unfollow” Modal
   //////////////////////////////
   let sortMode = 'latest'
+  let selectionMode = false
   let settingsObserver
   function buildPanel() {
     if (document.getElementById('tm-lock-panel')) return;
@@ -389,6 +390,9 @@
         cursor: pointer;
       }
       #tm-delete-selected:hover { background: #c5303e; }
+      /* Multi-select checkboxes */
+      .tm-select-checkbox { display: none; margin-right: 6px; cursor: pointer; }
+      #tm-locked-list.selection-mode .tm-select-checkbox { display: inline-block; }
       #tm-sort-select option { background: #0e0e10; color: #fff; }
       /* Channel List */
       .tm-list {
@@ -546,13 +550,31 @@
       refreshListUI()
       applySearchFilter()
     }
+    function enterSelectionMode() {
+      selectionMode = true
+      deleteSelected.textContent = 'Delete Selected'
+      refreshListUI()
+      updateDeleteSelectedButtonState()
+    }
+    function exitSelectionMode() {
+      selectionMode = false
+      deleteSelected.textContent = 'Remove Selected'
+      refreshListUI()
+      updateDeleteSelectedButtonState()
+    }
     async function handleDeleteSelectedClick() {
+      if (!selectionMode) {
+        if (getLockedChannels().length === 0) { showToast('List already empty', 'red'); return }
+        enterSelectionMode()
+        return
+      }
+
       const checkboxes = Array.from(document.querySelectorAll('.tm-select-checkbox:checked'))
       let targets
       if (checkboxes.length === 0) {
         targets = getLockedChannels()
-        if (targets.length === 0) { showToast('List already empty', 'red'); return }
-        if (!confirm('Clear entire Saved Channels list?')) return
+        if (targets.length === 0) { showToast('List already empty', 'red'); exitSelectionMode(); return }
+        if (!confirm('Clear entire Saved Channels list?')) { exitSelectionMode(); return }
       } else {
         targets = checkboxes.map(cb => cb.dataset.name)
         if (!confirm(`Remove ${targets.length} selected channel(s)?`)) return
@@ -561,10 +583,9 @@
         await removeChannel(name)
       }
       showToast(`${targets.length} channel${targets.length===1?'':'s'} removed`, 'red')
+      exitSelectionMode()
       updateAddCurrentButtonState()
-      refreshListUI()
       applySearchFilter()
-      updateDeleteSelectedButtonState()
     }
 
     addBtn.addEventListener('click', handleAddButtonClick)
@@ -649,6 +670,8 @@ async function onAddCurrent() {
     const ul = document.getElementById('tm-locked-list')
     if (!ul) return
     ul.innerHTML = ''
+    if (selectionMode) ul.classList.add('selection-mode')
+    else ul.classList.remove('selection-mode')
     const savedChannels = getLockedChannels().slice()
 
     let ordered
@@ -673,6 +696,7 @@ async function onAddCurrent() {
       checkbox.type = 'checkbox'
       checkbox.className = 'tm-select-checkbox'
       checkbox.dataset.name = channelName
+      checkbox.addEventListener('change', updateDeleteSelectedButtonState)
       const span = document.createElement('span')
       span.textContent = channelName
       li.appendChild(checkbox)
