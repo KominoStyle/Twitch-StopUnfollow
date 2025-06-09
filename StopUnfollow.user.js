@@ -368,7 +368,8 @@
       }
       .tm-list-actions {
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between;
+        align-items: center;
         gap: 6px;
       }
       .tm-search-wrapper {
@@ -593,13 +594,18 @@
     const importBtn = document.createElement('button');
     importBtn.id = 'tm-import-btn';
     importBtn.textContent = 'Import';
+    importBtn.style.display = 'none';
     const exportBtn = document.createElement('button');
     exportBtn.id = 'tm-export-btn';
     exportBtn.textContent = 'Export';
+    exportBtn.style.display = 'none';
 
     const listActions = document.createElement('div');
-    listActions.className = 'tm-list-actions tm-import-export';
-    listActions.append(deleteSelected, importBtn, exportBtn);
+    listActions.className = 'tm-list-actions';
+    const importExport = document.createElement('div');
+    importExport.className = 'tm-import-export';
+    importExport.append(importBtn, exportBtn);
+    listActions.append(importExport, deleteSelected);
 
     listHeader.append(listTop, listActions);
     body.append(listHeader);
@@ -634,6 +640,8 @@
       actionToggle.textContent = 'Cancel'
       actionToggle.classList.add('cancel')
       deleteSelected.style.display = 'inline-block'
+      importBtn.style.display = 'inline-block'
+      exportBtn.style.display = 'inline-block'
       refreshListUI()
       updateDeleteSelectedButtonState()
     }
@@ -642,6 +650,8 @@
       actionToggle.textContent = 'Action'
       actionToggle.classList.remove('cancel')
       deleteSelected.style.display = 'none'
+      importBtn.style.display = 'none'
+      exportBtn.style.display = 'none'
       refreshListUI()
       updateDeleteSelectedButtonState()
     }
@@ -681,7 +691,7 @@
         list = getLockedChannels()
       }
       if (list.length === 0) { showToast('Nothing to export', 'red'); return }
-      const json = JSON.stringify(list, null, 2)
+      const json = JSON.stringify(list)
       navigator.clipboard.writeText(json).then(
         () => showToast('Copied to clipboard', 'green'),
         () => showToast('Failed to copy', 'red')
