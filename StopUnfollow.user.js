@@ -389,8 +389,8 @@
         font-size: 12px;
         cursor: pointer;
       }
-      /* Bulk delete toggle */
-      #tm-bulk-toggle {
+      /* Action mode toggle */
+      #tm-action-toggle {
         background: #444;
         border: none;
         color: #fff;
@@ -399,7 +399,7 @@
         cursor: pointer;
         font-size: 12px;
       }
-      #tm-bulk-toggle:hover { background: #555; }
+      #tm-action-toggle:hover { background: #555; }
       /* Delete selected button */
       #tm-delete-selected {
         background: #d73a49;
@@ -518,12 +518,12 @@
     addCurrent.className = 'tm-add-current';
     addCurrent.id = 'tm-add-current';
     addCurrent.textContent = '+ Add Current Channel';
-    const bulkToggle = document.createElement('button');
-    bulkToggle.id = 'tm-bulk-toggle';
-    bulkToggle.textContent = 'Bulk Delete';
+    const actionToggle = document.createElement('button');
+    actionToggle.id = 'tm-action-toggle';
+    actionToggle.textContent = 'Action';
     const addActions = document.createElement('div');
     addActions.className = 'tm-add-actions';
-    addActions.append(addCurrent, bulkToggle);
+    addActions.append(addCurrent, actionToggle);
     addSection.append(controls, addActions);
     body.append(addSection);
 
@@ -587,19 +587,19 @@
     }
     function enterSelectionMode() {
       selectionMode = true
-      bulkToggle.textContent = 'Cancel Bulk Delete'
+      actionToggle.textContent = 'Cancel Action Mode'
       deleteSelected.style.display = 'inline-block'
       refreshListUI()
       updateDeleteSelectedButtonState()
     }
     function exitSelectionMode() {
       selectionMode = false
-      bulkToggle.textContent = 'Bulk Delete'
+      actionToggle.textContent = 'Action'
       deleteSelected.style.display = 'none'
       refreshListUI()
       updateDeleteSelectedButtonState()
     }
-    function handleBulkToggleClick() {
+    function handleActionToggleClick() {
       if (selectionMode) {
         exitSelectionMode()
       } else {
@@ -631,7 +631,7 @@
     searchInput.addEventListener('input', handleSearchInputChange)
     clearBtn.addEventListener('click', handleClearSearchClick)
     sortSelect.addEventListener('change', handleSortChange)
-    bulkToggle.addEventListener('click', handleBulkToggleClick)
+    actionToggle.addEventListener('click', handleActionToggleClick)
     deleteSelected.addEventListener('click', handleDeleteSelectedClick)
 
     // Initialize state
@@ -792,7 +792,7 @@ async function onAddCurrent() {
 
   function updateDeleteSelectedButtonState() {
     const btn = document.getElementById('tm-delete-selected')
-    const toggle = document.getElementById('tm-bulk-toggle')
+    const toggle = document.getElementById('tm-action-toggle')
     if (btn) btn.disabled = getLockedChannels().length === 0
     if (toggle) toggle.disabled = getLockedChannels().length === 0
   }
