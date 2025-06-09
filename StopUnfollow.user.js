@@ -379,6 +379,18 @@
         font-size: 12px;
         cursor: pointer;
       }
+      /* Bulk delete toggle */
+      #tm-bulk-toggle {
+        align-self: flex-start;
+        background: #444;
+        border: none;
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      #tm-bulk-toggle:hover { background: #555; }
       /* Delete selected button */
       #tm-delete-selected {
         background: #d73a49;
@@ -493,7 +505,14 @@
     const addBtn = document.createElement('button'); addBtn.className = 'add-btn'; addBtn.id = 'tm-add-btn'; addBtn.textContent = 'Add'; addBtn.disabled = true;
     controls.append(input, addBtn);
     const addCurrent = document.createElement('button'); addCurrent.className = 'tm-add-current'; addCurrent.id = 'tm-add-current'; addCurrent.textContent = '+ Add Current Channel';
-    addSection.append(controls, addCurrent);
+    const bulkToggle = document.createElement('button');
+    bulkToggle.id = 'tm-bulk-toggle';
+    bulkToggle.textContent = 'Bulk Delete';
+    const deleteSelected = document.createElement('button');
+    deleteSelected.id = 'tm-delete-selected';
+    deleteSelected.textContent = 'Delete Selected';
+    deleteSelected.style.display = 'none';
+    addSection.append(controls, addCurrent, bulkToggle, deleteSelected);
     body.append(addSection);
 
     // List Header
@@ -519,10 +538,7 @@
       if (val === sortMode) opt.selected = true;
       sortSelect.append(opt);
     });
-    const deleteSelected = document.createElement('button');
-    deleteSelected.id = 'tm-delete-selected';
-    deleteSelected.textContent = 'Remove Selected';
-    listHeader.append(searchWrapper, sortSelect, deleteSelected);
+    listHeader.append(searchWrapper, sortSelect);
     body.append(listHeader);
 
     // List
@@ -552,23 +568,27 @@
     }
     function enterSelectionMode() {
       selectionMode = true
-      deleteSelected.textContent = 'Delete Selected'
+      bulkToggle.textContent = 'Cancel Bulk Delete'
+      deleteSelected.style.display = 'inline-block'
       refreshListUI()
       updateDeleteSelectedButtonState()
     }
     function exitSelectionMode() {
       selectionMode = false
-      deleteSelected.textContent = 'Remove Selected'
+      bulkToggle.textContent = 'Bulk Delete'
+      deleteSelected.style.display = 'none'
       refreshListUI()
       updateDeleteSelectedButtonState()
     }
-    async function handleDeleteSelectedClick() {
-      if (!selectionMode) {
+    function handleBulkToggleClick() {
+      if (selectionMode) {
+        exitSelectionMode()
+      } else {
         if (getLockedChannels().length === 0) { showToast('List already empty', 'red'); return }
         enterSelectionMode()
-        return
       }
-
+    }
+    async function handleDeleteSelectedClick() {
       const checkboxes = Array.from(document.querySelectorAll('.tm-select-checkbox:checked'))
       let targets
       if (checkboxes.length === 0) {
@@ -587,12 +607,12 @@
       updateAddCurrentButtonState()
       applySearchFilter()
     }
-
     addBtn.addEventListener('click', handleAddButtonClick)
     addCurrent.addEventListener('click', handleAddCurrentClick)
     searchInput.addEventListener('input', handleSearchInputChange)
     clearBtn.addEventListener('click', handleClearSearchClick)
     sortSelect.addEventListener('change', handleSortChange)
+    bulkToggle.addEventListener('click', handleBulkToggleClick)
     deleteSelected.addEventListener('click', handleDeleteSelectedClick)
 
     // Initialize state
@@ -753,8 +773,9 @@ async function onAddCurrent() {
 
   function updateDeleteSelectedButtonState() {
     const btn = document.getElementById('tm-delete-selected')
-    if (!btn) return
-    btn.disabled = getLockedChannels().length === 0
+    const toggle = document.getElementById('tm-bulk-toggle')
+    if (btn) btn.disabled = getLockedChannels().length === 0
+    if (toggle) toggle.disabled = getLockedChannels().length === 0
   }
 
   async function addChannel(channelName) {
