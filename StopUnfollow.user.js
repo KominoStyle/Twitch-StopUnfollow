@@ -682,32 +682,49 @@
       updateAddCurrentButtonState()
       applySearchFilter()
     }
-    function handleExportClick() {
-      let list
-      const checked = Array.from(document.querySelectorAll('.tm-select-checkbox:checked'))
-      if (checked.length > 0) {
-        list = checked.map(cb => cb.dataset.name)
-      } else {
-        list = getLockedChannels()
+      function encodeName(name) {
+        return Array.from(name).map(ch => ch.charCodeAt(0))
       }
-      if (list.length === 0) { showToast('Nothing to export', 'red'); return }
-      const json = JSON.stringify(list)
-      navigator.clipboard.writeText(json).then(
-        () => showToast('Copied to clipboard', 'green'),
-        () => showToast('Failed to copy', 'red')
-      )
-    }
-    async function handleImportClick() {
-      const text = prompt('Paste channel list (JSON array or comma/space/newline separated):')
-      if (!text) return
-      let parts
-      try {
+      function decodeBits(bits) {
+        if (!Array.isArray(bits)) return null
+        for (const b of bits) {
+          if (typeof b !== 'number') return null
+        }
+        return String.fromCharCode(...bits)
+      }
+      function handleExportClick() {
+        let list
+        const checked = Array.from(document.querySelectorAll('.tm-select-checkbox:checked'))
+        if (checked.length > 0) {
+          list = checked.map(cb => cb.dataset.name)
+        } else {
+          list = getLockedChannels()
+        }
+        if (list.length === 0) { showToast('Nothing to export', 'red'); return }
+        const encoded = list.map(encodeName)
+        const json = JSON.stringify(encoded)
+        navigator.clipboard.writeText(json).then(
+          () => showToast('Copied to clipboard', 'green'),
+          () => showToast('Failed to copy', 'red')
+        )
+      }
+      async function handleImportClick() {
+        const text = prompt('Paste channel list (JSON array or comma/space/newline separated):')
+        if (!text) return
+        let parts
+        try {
         const parsed = JSON.parse(text)
-        parts = Array.isArray(parsed) ? parsed : []
-      } catch {
-        parts = text.split(/[,\s]+/)
-      }
-      let added = 0
+        if (Array.isArray(parsed) && parsed.every(v => Array.isArray(v))) {
+          parts = parsed.map(bits => decodeBits(bits)).filter(Boolean)
+        } else if (Array.isArray(parsed)) {
+          parts = parsed
+        } else {
+          parts = []
+        }
+        } catch {
+        parts = text.split(/[\s,]+/)
+        }
+        let added = 0
       for (const name of parts) {
         const cleaned = name.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
         if (!cleaned) continue
