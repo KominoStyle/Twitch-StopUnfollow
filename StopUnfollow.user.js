@@ -709,33 +709,30 @@
         )
       }
       async function handleImportClick() {
-        const text = prompt('Paste channel list (JSON array or comma/space/newline separated):')
+        const text = prompt('Paste exported channel list (JSON)')
         if (!text) return
         let parts
         try {
-        const parsed = JSON.parse(text)
-        if (Array.isArray(parsed) && parsed.every(v => Array.isArray(v))) {
-          parts = parsed.map(bits => decodeBits(bits)).filter(Boolean)
-        } else if (Array.isArray(parsed)) {
-          parts = parsed
-        } else {
-          parts = []
-        }
+          const parsed = JSON.parse(text)
+          if (!Array.isArray(parsed) || !parsed.every(v => Array.isArray(v))) throw new Error()
+          parts = parsed.map(bits => decodeBits(bits))
+          if (parts.some(v => !v)) throw new Error()
         } catch {
-        parts = text.split(/[\s,]+/)
+          showToast('Invalid list', 'red')
+          return
         }
         let added = 0
-      for (const name of parts) {
-        const cleaned = name.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
-        if (!cleaned) continue
-        if (await addChannel(cleaned)) added++
+        for (const name of parts) {
+          const cleaned = name.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
+          if (!cleaned) continue
+          if (await addChannel(cleaned)) added++
+        }
+        showToast(added ? `${added} added` : 'No new channels', added ? 'green' : 'red')
+        updateAddCurrentButtonState()
+        refreshListUI()
+        applySearchFilter()
+        updateDeleteSelectedButtonState()
       }
-      showToast(added ? `${added} added` : 'No new channels', added ? 'green' : 'red')
-      updateAddCurrentButtonState()
-      refreshListUI()
-      applySearchFilter()
-      updateDeleteSelectedButtonState()
-    }
     addBtn.addEventListener('click', handleAddButtonClick)
     addCurrent.addEventListener('click', handleAddCurrentClick)
     searchInput.addEventListener('input', handleSearchInputChange)
