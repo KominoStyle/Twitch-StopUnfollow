@@ -692,7 +692,7 @@
             : ENCODE_CHARS[(idx + ENCODE_SHIFT) % ENCODE_CHARS.length]
         }).join('')
       }
-      function decodeBits(str) {
+      function decodeName(str) {
         if (typeof str !== 'string') return null
         let result = ''
         for (const ch of str) {
@@ -727,7 +727,7 @@
           if (!Array.isArray(parsed) || !parsed.every(str => typeof str === 'string')) {
             throw new Error()
           }
-          parts = parsed.map(str => decodeBits(str))
+          parts = parsed.map(str => decodeName(str))
           if (parts.some(v => !v)) throw new Error()
         } catch {
           showToast('Invalid export data', 'red')
