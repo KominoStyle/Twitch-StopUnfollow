@@ -95,6 +95,7 @@
   //////////////////////////////
   const STORAGE_KEY_CHANNELS = 'lockedTwitchChannels'
   const ENCODE_SHIFT = 13
+  const ENCODE_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789_'
   function getLockedChannels() {
     const raw = GM_getValue(STORAGE_KEY_CHANNELS)
     return Array.isArray(raw) ? raw : []
@@ -684,14 +685,22 @@
       applySearchFilter()
     }
       function encodeName(name) {
-        return Array.from(name).map(ch => ch.charCodeAt(0) + ENCODE_SHIFT)
+        return Array.from(name).map(ch => {
+          const idx = ENCODE_CHARS.indexOf(ch)
+          return idx === -1
+            ? ch
+            : ENCODE_CHARS[(idx + ENCODE_SHIFT) % ENCODE_CHARS.length]
+        }).join('')
       }
-      function decodeBits(bits) {
-        if (!Array.isArray(bits)) return null
-        for (const b of bits) {
-          if (typeof b !== 'number') return null
+      function decodeBits(str) {
+        if (typeof str !== 'string') return null
+        let result = ''
+        for (const ch of str) {
+          const idx = ENCODE_CHARS.indexOf(ch)
+          if (idx === -1) return null
+          result += ENCODE_CHARS[(idx - ENCODE_SHIFT + ENCODE_CHARS.length) % ENCODE_CHARS.length]
         }
-        return String.fromCharCode(...bits.map(n => n - ENCODE_SHIFT))
+        return result
       }
       function handleExportClick() {
         let list
@@ -715,10 +724,10 @@
         let parts
         try {
           const parsed = JSON.parse(text)
-          if (!Array.isArray(parsed) || !parsed.every(arr => Array.isArray(arr) && arr.every(n => typeof n === 'number'))) {
+          if (!Array.isArray(parsed) || !parsed.every(str => typeof str === 'string')) {
             throw new Error()
           }
-          parts = parsed.map(bits => decodeBits(bits))
+          parts = parsed.map(str => decodeBits(str))
           if (parts.some(v => !v)) throw new Error()
         } catch {
           showToast('Invalid export data', 'red')
