@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.44
+// @version      1.45
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
@@ -584,6 +584,16 @@
 async function onAddCurrent() {
     const current = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
     if (!current) { showToast('Not on a channel page.', 'red'); return }
+    showToast('Checking username…', 'green')
+    const exists = await checkTwitchUser(current)
+    if (exists === false) {
+      showToast('User not found', 'red')
+      return
+    }
+    if (exists === null) {
+      showToast('Unable to verify username', 'red')
+      return
+    }
     const added = await addChannel(current)
     showToast(added ? `${current} added` : '✓ Already saved', added ? 'green' : 'red')
     updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); disableUnfollowIfSaved()
