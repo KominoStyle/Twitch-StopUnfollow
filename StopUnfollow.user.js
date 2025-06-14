@@ -110,6 +110,7 @@
         method: 'HEAD',
         url: `https://passport.twitch.tv/usernames/${encodeURIComponent(username)}`,
         onload: res => {
+          console.log('checkTwitchUser status', res.status, 'for', username)
           if (res.status === 200) {
             resolve(true) // Username exists
           } else if (res.status === 204) {
@@ -119,7 +120,10 @@
             resolve(null)
           }
         },
-        onerror: () => resolve(null)
+        onerror: err => {
+          console.warn('Error checking username:', err)
+          resolve(null)
+        }
       })
     })
   }
