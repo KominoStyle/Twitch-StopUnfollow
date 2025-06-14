@@ -178,6 +178,7 @@
   // 5) Build “Stop Unfollow” Modal
   //////////////////////////////
   let sortMode = 'latest'
+  let selectionMode = false
   let settingsObserver
   function buildPanel() {
     if (document.getElementById('tm-lock-panel')) return;
@@ -283,6 +284,36 @@
         background: #0e0e10;
         border-bottom: 1px solid #333;
       }
+      .tm-add-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+      }
+      .tm-import-export {
+        display: flex;
+        gap: 6px;
+      }
+      #tm-import-btn {
+        background: #1e69ff;
+        border: none;
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      #tm-import-btn:hover { background: #0d5fe4; }
+      #tm-export-btn {
+        background: #28a745;
+        border: none;
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      #tm-export-btn:hover { background: #218838; }
       .tm-add-controls {
         display: flex;
         gap: 6px;
@@ -309,7 +340,6 @@
         background: #772ce8;
       }
       .tm-add-current {
-        align-self: flex-start;
         background: #444;
         border: none;
         color: #fff;
@@ -325,11 +355,22 @@
       /* List Header */
       .tm-list-header {
         display: flex;
-        align-items: center;
+        flex-direction: column;
         gap: 6px;
         padding: 8px 12px;
         background: #0e0e10;
         border-bottom: 1px solid #333;
+      }
+      .tm-list-top {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .tm-list-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
       }
       .tm-search-wrapper {
         position: relative;
@@ -378,6 +419,34 @@
         font-size: 12px;
         cursor: pointer;
       }
+      /* Action mode toggle */
+      #tm-action-toggle {
+        background: #9147ff;
+        border: none;
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      #tm-action-toggle:hover { background: #772ce8; }
+      #tm-action-toggle.cancel { background: #444; }
+      #tm-action-toggle.cancel:hover { background: #555; }
+      /* Delete selected button */
+      #tm-delete-selected {
+        background: #d73a49;
+        border: none;
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+        align-self: flex-end;
+      }
+      #tm-delete-selected:hover { background: #c5303e; }
+      /* Multi-select checkboxes */
+      .tm-select-checkbox { display: none; margin-right: 6px; cursor: pointer; }
+      #tm-locked-list.selection-mode .tm-select-checkbox { display: inline-block; }
       #tm-sort-select option { background: #0e0e10; color: #fff; }
       /* Channel List */
       .tm-list {
@@ -394,6 +463,10 @@
         padding: 6px 0;
         border-bottom: 1px solid #333;
         font-size: 13px;
+      }
+      .tm-select-checkbox {
+        margin-right: 6px;
+        cursor: pointer;
       }
       .tm-list li button.remove-btn {
         background: transparent;
@@ -473,8 +546,17 @@
     const input = document.createElement('input'); input.type = 'text'; input.id = 'tm-channel-input'; input.placeholder = 'e.g. streamername'; input.disabled = true;
     const addBtn = document.createElement('button'); addBtn.className = 'add-btn'; addBtn.id = 'tm-add-btn'; addBtn.textContent = 'Add'; addBtn.disabled = true;
     controls.append(input, addBtn);
-    const addCurrent = document.createElement('button'); addCurrent.className = 'tm-add-current'; addCurrent.id = 'tm-add-current'; addCurrent.textContent = '+ Add Current Channel';
-    addSection.append(controls, addCurrent);
+    const addCurrent = document.createElement('button');
+    addCurrent.className = 'tm-add-current';
+    addCurrent.id = 'tm-add-current';
+    addCurrent.textContent = '+ Add Current Channel';
+    const actionToggle = document.createElement('button');
+    actionToggle.id = 'tm-action-toggle';
+    actionToggle.textContent = 'Action';
+    const addActions = document.createElement('div');
+    addActions.className = 'tm-add-actions';
+    addActions.append(addCurrent, actionToggle);
+    addSection.append(controls, addActions);
     body.append(addSection);
 
     // List Header
@@ -500,7 +582,32 @@
       if (val === sortMode) opt.selected = true;
       sortSelect.append(opt);
     });
-    listHeader.append(searchWrapper, sortSelect);
+    const listTop = document.createElement('div');
+    listTop.className = 'tm-list-top';
+    listTop.append(searchWrapper, sortSelect);
+
+    const deleteSelected = document.createElement('button');
+    deleteSelected.id = 'tm-delete-selected';
+    deleteSelected.textContent = 'Delete Selected';
+    deleteSelected.style.display = 'none';
+
+    const importBtn = document.createElement('button');
+    importBtn.id = 'tm-import-btn';
+    importBtn.textContent = 'Import';
+    importBtn.style.display = 'none';
+    const exportBtn = document.createElement('button');
+    exportBtn.id = 'tm-export-btn';
+    exportBtn.textContent = 'Export';
+    exportBtn.style.display = 'none';
+
+    const listActions = document.createElement('div');
+    listActions.className = 'tm-list-actions';
+    const importExport = document.createElement('div');
+    importExport.className = 'tm-import-export';
+    importExport.append(importBtn, exportBtn);
+    listActions.append(importExport, deleteSelected);
+
+    listHeader.append(listTop, listActions);
     body.append(listHeader);
 
     // List
@@ -528,15 +635,104 @@
       refreshListUI()
       applySearchFilter()
     }
-
+    function enterSelectionMode() {
+      selectionMode = true
+      actionToggle.textContent = 'Cancel'
+      actionToggle.classList.add('cancel')
+      deleteSelected.style.display = 'inline-block'
+      importBtn.style.display = 'inline-block'
+      exportBtn.style.display = 'inline-block'
+      refreshListUI()
+      updateDeleteSelectedButtonState()
+    }
+    function exitSelectionMode() {
+      selectionMode = false
+      actionToggle.textContent = 'Action'
+      actionToggle.classList.remove('cancel')
+      deleteSelected.style.display = 'none'
+      importBtn.style.display = 'none'
+      exportBtn.style.display = 'none'
+      refreshListUI()
+      updateDeleteSelectedButtonState()
+    }
+    function handleActionToggleClick() {
+      if (selectionMode) {
+        exitSelectionMode()
+      } else {
+        if (getLockedChannels().length === 0) { showToast('List already empty', 'red'); return }
+        enterSelectionMode()
+      }
+    }
+    async function handleDeleteSelectedClick() {
+      const checkboxes = Array.from(document.querySelectorAll('.tm-select-checkbox:checked'))
+      let targets
+      if (checkboxes.length === 0) {
+        targets = getLockedChannels()
+        if (targets.length === 0) { showToast('List already empty', 'red'); exitSelectionMode(); return }
+        if (!confirm('Clear entire Saved Channels list?')) { exitSelectionMode(); return }
+      } else {
+        targets = checkboxes.map(cb => cb.dataset.name)
+        if (!confirm(`Remove ${targets.length} selected channel(s)?`)) return
+      }
+      for (const name of targets) {
+        await removeChannel(name)
+      }
+      showToast(`${targets.length} channel${targets.length===1?'':'s'} removed`, 'red')
+      exitSelectionMode()
+      updateAddCurrentButtonState()
+      applySearchFilter()
+    }
+      function handleExportClick() {
+        let list
+        const checked = Array.from(document.querySelectorAll('.tm-select-checkbox:checked'))
+        if (checked.length > 0) {
+          list = checked.map(cb => cb.dataset.name)
+        } else {
+          list = getLockedChannels()
+        }
+        if (list.length === 0) { showToast('Nothing to export', 'red'); return }
+        const json = JSON.stringify(list)
+        navigator.clipboard.writeText(json).then(
+          () => showToast('Copied to clipboard', 'green'),
+          () => showToast('Failed to copy', 'red')
+        )
+      }
+      async function handleImportClick() {
+        const text = prompt('Paste channel list (JSON array):')
+        if (!text) return
+        let parts
+        try {
+          const parsed = JSON.parse(text)
+          if (!Array.isArray(parsed) || !parsed.every(str => typeof str === 'string')) throw new Error()
+          parts = parsed
+        } catch {
+          showToast('Invalid list format', 'red')
+          return
+        }
+        let added = 0
+        for (const name of parts) {
+          const cleaned = name.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
+          if (!cleaned) continue
+          if (await addChannel(cleaned)) added++
+        }
+        showToast(added ? `${added} added` : 'No new channels', added ? 'green' : 'red')
+        updateAddCurrentButtonState()
+        refreshListUI()
+        applySearchFilter()
+        updateDeleteSelectedButtonState()
+      }
     addBtn.addEventListener('click', handleAddButtonClick)
     addCurrent.addEventListener('click', handleAddCurrentClick)
     searchInput.addEventListener('input', handleSearchInputChange)
     clearBtn.addEventListener('click', handleClearSearchClick)
     sortSelect.addEventListener('change', handleSortChange)
+    actionToggle.addEventListener('click', handleActionToggleClick)
+    deleteSelected.addEventListener('click', handleDeleteSelectedClick)
+    importBtn.addEventListener('click', handleImportClick)
+    exportBtn.addEventListener('click', handleExportClick)
 
     // Initialize state
-    refreshListUI(); updateAddCurrentButtonState(); applySearchFilter();
+    refreshListUI(); updateAddCurrentButtonState(); applySearchFilter(); updateDeleteSelectedButtonState();
   }
   // Drag & Drop already bound within buildPanel
 
@@ -547,7 +743,7 @@
     showToast('Checking username…', 'green')
     const added = await addChannel(raw)
     showToast(added ? `${raw} added` : '✓ Already saved', added ? 'green' : 'red')
-    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); disableUnfollowIfSaved()
+    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
 }
 
 async function onAddCurrent() {
@@ -555,7 +751,7 @@ async function onAddCurrent() {
     if (!current) { showToast('Not on a channel page.', 'red'); return }
     const added = await addChannel(current)
     showToast(added ? `${current} added` : '✓ Already saved', added ? 'green' : 'red')
-    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); disableUnfollowIfSaved()
+    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
 }
 
   function showToast(message, color) {
@@ -610,6 +806,8 @@ async function onAddCurrent() {
     const ul = document.getElementById('tm-locked-list')
     if (!ul) return
     ul.innerHTML = ''
+    if (selectionMode) ul.classList.add('selection-mode')
+    else ul.classList.remove('selection-mode')
     const savedChannels = getLockedChannels().slice()
 
     let ordered
@@ -630,8 +828,14 @@ async function onAddCurrent() {
 
     ordered.forEach(channelName => {
       const li = document.createElement('li')
+      const checkbox = document.createElement('input')
+      checkbox.type = 'checkbox'
+      checkbox.className = 'tm-select-checkbox'
+      checkbox.dataset.name = channelName
+      checkbox.addEventListener('change', updateDeleteSelectedButtonState)
       const span = document.createElement('span')
       span.textContent = channelName
+      li.appendChild(checkbox)
       li.appendChild(span)
       const removeBtn = document.createElement('button')
       removeBtn.textContent = '✕'
@@ -653,6 +857,7 @@ async function onAddCurrent() {
     if (titleEl) {
       titleEl.textContent = `Saved Channels (Count: ${savedChannels.length})`
     }
+    updateDeleteSelectedButtonState()
   }
 
   function applySearchFilter() {
@@ -680,6 +885,17 @@ async function onAddCurrent() {
       btn.disabled = false
       btn.style.cursor = 'pointer'
     }
+  }
+
+  function updateDeleteSelectedButtonState() {
+    const btn = document.getElementById('tm-delete-selected')
+    const toggle = document.getElementById('tm-action-toggle')
+    const importBtn = document.getElementById('tm-import-btn')
+    const exportBtn = document.getElementById('tm-export-btn')
+    if (btn) btn.disabled = getLockedChannels().length === 0
+    if (toggle) toggle.disabled = getLockedChannels().length === 0
+    if (importBtn) importBtn.disabled = false
+    if (exportBtn) exportBtn.disabled = getLockedChannels().length === 0
   }
 
   async function addChannel(channelName) {
