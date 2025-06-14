@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.47
+// @version      1.48
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
@@ -572,8 +572,8 @@
     const input = document.getElementById('tm-channel-input')
     const raw = input.value.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
     if (!raw) { showToast('Please enter a channel name.', 'red'); return }
-    // 3–26 characters, lowercase letters, digits or underscores
-    if (!/^[a-z0-9_]{3,26}$/.test(raw)) {
+    // 3–26 characters, allow any letters or symbols
+    if (!/^.{3,26}$/u.test(raw)) {
       showToast('Invalid username format', 'red')
       return
     }
@@ -596,7 +596,7 @@ async function onAddCurrent() {
     const current = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
     if (!current) { showToast('Not on a channel page.', 'red'); return }
     // Current channel should also respect the 3–26 character rule
-    if (!/^[a-z0-9_]{3,26}$/.test(current)) {
+    if (!/^.{3,26}$/u.test(current)) {
       showToast('Invalid channel', 'red')
       return
     }
