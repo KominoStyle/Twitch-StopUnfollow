@@ -11,6 +11,7 @@
 // @connect      api.twitch.tv
 // @connect      raw.githubusercontent.com
 // @connect      passport.twitch.tv
+// @connect      gql.twitch.tv
 // @updateURL    https://raw.githubusercontent.com/KominoStyle/Twitch-StopUnfollow/main/StopUnfollow.user.js
 // @downloadURL  https://raw.githubusercontent.com/KominoStyle/Twitch-StopUnfollow/main/StopUnfollow.user.js
 // @run-at       document-idle
@@ -133,26 +134,31 @@
   // Helper to verify if a user exists and is not banned/suspended
   function checkTwitchUserStatus(username) {
     const clientId = 'kimne78kx3ncx6brgo4mv6wki5h1ko'
+    const query = {
+      query: `query($login:String!){user(login:$login){id banned suspended}}`,
+      variables: { login: username }
+    }
     return new Promise(resolve => {
       GM.xmlHttpRequest({
-        method: 'GET',
-        url: `https://api.twitch.tv/helix/users?login=${encodeURIComponent(username)}`,
+        method: 'POST',
+        url: 'https://gql.twitch.tv/gql',
         headers: {
           'Client-ID': clientId,
-          'Accept': 'application/json'
+          'Content-Type': 'application/json'
         },
+        data: JSON.stringify(query),
         onload: res => {
           console.log('checkTwitchUserStatus status', res.status, 'for', username)
           if (res.status === 200) {
             try {
               const data = JSON.parse(res.responseText)
-              const user = Array.isArray(data.data) ? data.data[0] : null
+              const user = data?.data?.user || null
               console.log('checkTwitchUserStatus data', data)
               console.log('checkTwitchUserStatus user', user)
               if (!user) {
                 resolve({ exists: false, banned: false })
               } else {
-                const banned = Boolean(user.banned) || Boolean(user.suspended) || user.type === 'banned'
+                const banned = Boolean(user.banned) || Boolean(user.suspended)
                 console.log('checkTwitchUserStatus banned?', banned)
                 resolve({ exists: true, banned })
               }
