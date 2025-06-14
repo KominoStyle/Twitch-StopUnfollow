@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.43
+// @version      1.50
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
@@ -10,6 +10,7 @@
 // @grant        GM_xmlhttpRequest
 // @connect      api.twitch.tv
 // @connect      raw.githubusercontent.com
+// @connect      passport.twitch.tv
 // @updateURL    https://raw.githubusercontent.com/KominoStyle/Twitch-StopUnfollow/main/StopUnfollow.user.js
 // @downloadURL  https://raw.githubusercontent.com/KominoStyle/Twitch-StopUnfollow/main/StopUnfollow.user.js
 // @run-at       document-idle
@@ -100,6 +101,31 @@
   }
   function setLockedChannels(list) {
     GM_setValue(STORAGE_KEY_CHANNELS, list)
+  }
+
+  // Helper to verify if a Twitch username exists
+  function checkTwitchUser(username) {
+    return new Promise(resolve => {
+      GM.xmlHttpRequest({
+        method: 'HEAD',
+        url: `https://passport.twitch.tv/usernames/${encodeURIComponent(username)}`,
+        onload: res => {
+          console.log('checkTwitchUser status', res.status, 'for', username)
+          if (res.status === 200) {
+            resolve(true) // Username exists (taken)
+          } else if (res.status === 204) {
+            resolve(false) // Username not found (available)
+          } else {
+            console.warn('Unexpected status checking username:', res.status)
+            resolve(null)
+          }
+        },
+        onerror: err => {
+          console.warn('Error checking username:', err)
+          resolve(null)
+        }
+      })
+    })
   }
 
   //////////////////////////////
@@ -339,6 +365,18 @@
       .tm-add-controls button.add-btn:hover {
         background: #772ce8;
       }
+      .tm-add-controls button.import-btn {
+        background: #555;
+        border: none;
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .tm-add-controls button.import-btn:hover {
+        background: #666;
+      }
       .tm-add-current {
         background: #444;
         border: none;
@@ -542,9 +580,9 @@
 
     // Add Section
     const addSection = document.createElement('div'); addSection.className = 'tm-add-section';
-    const controls = document.createElement('div'); controls.className = 'tm-add-controls under-construction';
-    const input = document.createElement('input'); input.type = 'text'; input.id = 'tm-channel-input'; input.placeholder = 'e.g. streamername'; input.disabled = true;
-    const addBtn = document.createElement('button'); addBtn.className = 'add-btn'; addBtn.id = 'tm-add-btn'; addBtn.textContent = 'Add'; addBtn.disabled = true;
+    const controls = document.createElement('div'); controls.className = 'tm-add-controls';
+    const input = document.createElement('input'); input.type = 'text'; input.id = 'tm-channel-input'; input.placeholder = 'e.g. streamername';
+    const addBtn = document.createElement('button'); addBtn.className = 'add-btn'; addBtn.id = 'tm-add-btn'; addBtn.textContent = 'Add';
     controls.append(input, addBtn);
     const addCurrent = document.createElement('button');
     addCurrent.className = 'tm-add-current';
@@ -618,6 +656,7 @@
     // Event bindings
     async function handleAddButtonClick() { await onAddByText() }
     async function handleAddCurrentClick() { await onAddCurrent() }
+    async function handleImportClick() { await onImportList() }
     function handleSearchInputChange() {
       clearBtn.style.display = searchInput.value ? 'block' : 'none'
       refreshListUI()
@@ -723,6 +762,7 @@
       }
     addBtn.addEventListener('click', handleAddButtonClick)
     addCurrent.addEventListener('click', handleAddCurrentClick)
+    importBtn.addEventListener('click', handleImportClick)
     searchInput.addEventListener('input', handleSearchInputChange)
     clearBtn.addEventListener('click', handleClearSearchClick)
     sortSelect.addEventListener('change', handleSortChange)
@@ -740,18 +780,65 @@
     const input = document.getElementById('tm-channel-input')
     const raw = input.value.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
     if (!raw) { showToast('Please enter a channel name.', 'red'); return }
+    // 3–26 characters, allow any letters or symbols
+    if (!/^.{3,26}$/u.test(raw)) {
+      showToast('Invalid username format', 'red')
+      return
+    }
     showToast('Checking username…', 'green')
+    const exists = await checkTwitchUser(raw)
+    if (exists === false) {
+      showToast('User not found', 'red')
+      return
+    }
+    if (exists === null) {
+      showToast('Unable to verify username', 'red')
+      return
+    }
     const added = await addChannel(raw)
     showToast(added ? `${raw} added` : '✓ Already saved', added ? 'green' : 'red')
+
     updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
 }
+
 
 async function onAddCurrent() {
     const current = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
     if (!current) { showToast('Not on a channel page.', 'red'); return }
+    // Current channel should also respect the 3–26 character rule
+    if (!/^.{3,26}$/u.test(current)) {
+      showToast('Invalid channel', 'red')
+      return
+    }
+    showToast('Checking username…', 'green')
+    const exists = await checkTwitchUser(current)
+    if (exists === false) {
+      showToast('User not found', 'red')
+      return
+    }
+    if (exists === null) {
+      showToast('Unable to verify username', 'red')
+      return
+    }
     const added = await addChannel(current)
     showToast(added ? `${current} added` : '✓ Already saved', added ? 'green' : 'red')
     updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
+}
+
+async function onImportList() {
+    const text = prompt('Paste channels separated by spaces or new lines:')
+    if (!text) return
+    const names = text.split(/\s+/).map(n => n.trim().toLowerCase()).filter(Boolean)
+    if (!names.length) { showToast('No channels provided', 'red'); return }
+    let added = 0
+    for (const name of names) {
+      if (!/^.{3,26}$/u.test(name)) continue
+      const exists = await checkTwitchUser(name)
+      if (exists !== true) continue
+      if (await addChannel(name)) added++
+    }
+    showToast(added ? `Imported ${added}` : 'No valid users added', added ? 'green' : 'red')
+    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); disableUnfollowIfSaved()
 }
 
   function showToast(message, color) {
