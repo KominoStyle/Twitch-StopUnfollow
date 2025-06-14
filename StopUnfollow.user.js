@@ -753,7 +753,7 @@
       let added = 0
       for (const name of parts) {
         const cleaned = name.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
-        if (!cleaned || !/^.{3,26}$/u.test(cleaned)) continue
+        if (!cleaned || !/^.{4,26}$/u.test(cleaned)) continue
         const exists = await checkTwitchUser(cleaned)
         if (exists) {
           if (await addChannel(cleaned)) added++
@@ -783,7 +783,7 @@
     const raw = input.value.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
     if (!raw) { showToast('Please enter a channel name.', 'red'); return }
     // 3–26 characters, allow any letters or symbols
-    if (!/^.{3,26}$/u.test(raw)) {
+    if (!/^.{4,26}$/u.test(raw)) {
       showToast('Invalid username format', 'red')
       return
     }
@@ -808,7 +808,7 @@ async function onAddCurrent() {
     const current = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
     if (!current) { showToast('Not on a channel page.', 'red'); return }
     // Current channel should also respect the 3–26 character rule
-    if (!/^.{3,26}$/u.test(current)) {
+    if (!/^.{4,26}$/u.test(current)) {
       showToast('Invalid channel', 'red')
       return
     }
