@@ -114,9 +114,9 @@
         onload: res => {
           console.log('checkTwitchUser status', res.status, 'for', username)
           if (res.status === 200) {
-            resolve(true) // Username exists (taken)
+            resolve(true) // Username exists
           } else if (res.status === 204) {
-            resolve(false) // Username not found (available)
+            resolve(false) // Username not found
           } else {
             console.warn('Unexpected status checking username:', res.status)
             resolve(null)
@@ -380,7 +380,6 @@
         background: #666;
       }
       .tm-add-current {
-        align-self: flex-start;
         background: #444;
         border: none;
         color: #fff;
@@ -587,9 +586,17 @@
     const input = document.createElement('input'); input.type = 'text'; input.id = 'tm-channel-input'; input.placeholder = 'e.g. streamername';
     const addBtn = document.createElement('button'); addBtn.className = 'add-btn'; addBtn.id = 'tm-add-btn'; addBtn.textContent = 'Add';
     controls.append(input, addBtn);
-    const addCurrent = document.createElement('button'); addCurrent.className = 'tm-add-current'; addCurrent.id = 'tm-add-current'; addCurrent.textContent = '+ Add Current Channel';
-    const importBtn = document.createElement('button'); importBtn.className = 'import-btn'; importBtn.id = 'tm-import-btn'; importBtn.textContent = 'Import List';
-    addSection.append(controls, addCurrent, importBtn);
+    const addCurrent = document.createElement('button');
+    addCurrent.className = 'tm-add-current';
+    addCurrent.id = 'tm-add-current';
+    addCurrent.textContent = '+ Add Current Channel';
+    const actionToggle = document.createElement('button');
+    actionToggle.id = 'tm-action-toggle';
+    actionToggle.textContent = 'Action';
+    const addActions = document.createElement('div');
+    addActions.className = 'tm-add-actions';
+    addActions.append(addCurrent, actionToggle);
+    addSection.append(controls, addActions);
     body.append(addSection);
 
     // List Header
@@ -747,9 +754,6 @@
         for (const name of parts) {
           const cleaned = name.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
           if (!cleaned) continue
-          if (!/^.{3,26}$/u.test(cleaned)) continue
-          const exists = await checkTwitchUser(cleaned)
-          if (exists !== true) continue
           if (await addChannel(cleaned)) added++
         }
         showToast(added ? `${added} added` : 'No new channels', added ? 'green' : 'red')
@@ -821,22 +825,6 @@ async function onAddCurrent() {
     const added = await addChannel(current)
     showToast(added ? `${current} added` : '✓ Already saved', added ? 'green' : 'red')
     updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
-}
-
-async function onImportList() {
-    const text = prompt('Paste channels separated by spaces or new lines:')
-    if (!text) return
-    const names = text.split(/\s+/).map(n => n.trim().toLowerCase()).filter(Boolean)
-    if (!names.length) { showToast('No channels provided', 'red'); return }
-    let added = 0
-    for (const name of names) {
-      if (!/^.{3,26}$/u.test(name)) continue
-      const exists = await checkTwitchUser(name)
-      if (exists !== true) continue
-      if (await addChannel(name)) added++
-    }
-    showToast(added ? `Imported ${added}` : 'No valid users added', added ? 'green' : 'red')
-    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); disableUnfollowIfSaved()
 }
 
   function showToast(message, color) {
