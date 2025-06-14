@@ -738,29 +738,30 @@
         )
       }
       async function handleImportClick() {
-        const text = prompt('Paste channel list (JSON array):')
-        if (!text) return
-        let parts
-        try {
-          const parsed = JSON.parse(text)
-          if (!Array.isArray(parsed) || !parsed.every(str => typeof str === 'string')) throw new Error()
-          parts = parsed
-        } catch {
-          showToast('Invalid list format', 'red')
-          return
-        }
-        let added = 0
-        for (const name of parts) {
-          const cleaned = name.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
-          if (!cleaned) continue
+      const text = prompt('Paste channel list (JSON array):')
+      if (!text) return
+      let parts
+      try {
+        const parsed = JSON.parse(text)
+        if (!Array.isArray(parsed) || !parsed.every(str => typeof str === 'string')) throw new Error()
+        parts = parsed
+      } catch {
+        showToast('Invalid list format', 'red')
+        return
+      }
+      showToast('Checking usernames…', 'green')
+      let added = 0
+      for (const name of parts) {
+        const cleaned = name.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
+        if (!cleaned || !/^.{3,26}$/u.test(cleaned)) continue
+        const exists = await checkTwitchUser(cleaned)
+        if (exists) {
           if (await addChannel(cleaned)) added++
         }
-        showToast(added ? `${added} added` : 'No new channels', added ? 'green' : 'red')
-        updateAddCurrentButtonState()
-        refreshListUI()
-        applySearchFilter()
-        updateDeleteSelectedButtonState()
       }
+      showToast(added ? `${added} added` : 'No valid channels', added ? 'green' : 'red')
+      updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
+    }
     addBtn.addEventListener('click', handleAddButtonClick)
     addCurrent.addEventListener('click', handleAddCurrentClick)
     importBtn.addEventListener('click', handleImportClick)
