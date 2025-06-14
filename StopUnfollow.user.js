@@ -698,17 +698,13 @@
         )
       }
       async function handleImportClick() {
-        const text = prompt('Paste channel list (JSON array or comma/space/newline separated):')
+        const text = prompt('Paste channel list (JSON array):')
         if (!text) return
         let parts
         try {
-          if (text.trim().startsWith('[')) {
-            const parsed = JSON.parse(text)
-            if (!Array.isArray(parsed) || !parsed.every(str => typeof str === 'string')) throw new Error()
-            parts = parsed
-          } else {
-            parts = text.split(/[,\s]+/)
-          }
+          const parsed = JSON.parse(text)
+          if (!Array.isArray(parsed) || !parsed.every(str => typeof str === 'string')) throw new Error()
+          parts = parsed
         } catch {
           showToast('Invalid list format', 'red')
           return
