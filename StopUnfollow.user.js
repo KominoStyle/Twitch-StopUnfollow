@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.45
+// @version      1.46
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
@@ -425,30 +425,6 @@
         font-size: 12px;
       }
       .tm-list li button.remove-btn:hover { color: #f28482; }
-      /* Under-construction overlay */
-      .tm-add-controls.under-construction {
-        position: relative;
-        pointer-events: none;
-      }
-      .tm-add-controls.under-construction::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: repeating-linear-gradient(135deg, #ffff0080 0, #ffff0080 15px, black 15px, black 30px);
-        opacity: 1;
-        z-index: 1;
-      }
-      .tm-add-controls.under-construction::after {
-        content: "UNDER CONSTRUCTION";
-        position: absolute;
-        top: 50%; left: 50%;
-        transform: translate(-50%, -50%);
-        color: #fff;
-        font-size: 20px;
-        font-weight: bold;
-        white-space: nowrap;
-        z-index: 2;
-      }
     `);
 
     // Header
@@ -491,9 +467,9 @@
 
     // Add Section
     const addSection = document.createElement('div'); addSection.className = 'tm-add-section';
-    const controls = document.createElement('div'); controls.className = 'tm-add-controls under-construction';
-    const input = document.createElement('input'); input.type = 'text'; input.id = 'tm-channel-input'; input.placeholder = 'e.g. streamername'; input.disabled = true;
-    const addBtn = document.createElement('button'); addBtn.className = 'add-btn'; addBtn.id = 'tm-add-btn'; addBtn.textContent = 'Add'; addBtn.disabled = true;
+    const controls = document.createElement('div'); controls.className = 'tm-add-controls';
+    const input = document.createElement('input'); input.type = 'text'; input.id = 'tm-channel-input'; input.placeholder = 'e.g. streamername';
+    const addBtn = document.createElement('button'); addBtn.className = 'add-btn'; addBtn.id = 'tm-add-btn'; addBtn.textContent = 'Add';
     controls.append(input, addBtn);
     const addCurrent = document.createElement('button'); addCurrent.className = 'tm-add-current'; addCurrent.id = 'tm-add-current'; addCurrent.textContent = '+ Add Current Channel';
     addSection.append(controls, addCurrent);
@@ -566,6 +542,10 @@
     const input = document.getElementById('tm-channel-input')
     const raw = input.value.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
     if (!raw) { showToast('Please enter a channel name.', 'red'); return }
+    if (!/^[a-z0-9_]{4,25}$/.test(raw)) {
+      showToast('Invalid username format', 'red')
+      return
+    }
     showToast('Checking username…', 'green')
     const exists = await checkTwitchUser(raw)
     if (exists === false) {
@@ -584,6 +564,10 @@
 async function onAddCurrent() {
     const current = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
     if (!current) { showToast('Not on a channel page.', 'red'); return }
+    if (!/^[a-z0-9_]{4,25}$/.test(current)) {
+      showToast('Invalid channel', 'red')
+      return
+    }
     showToast('Checking username…', 'green')
     const exists = await checkTwitchUser(current)
     if (exists === false) {
