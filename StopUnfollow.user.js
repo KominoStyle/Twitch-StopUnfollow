@@ -356,7 +356,7 @@
         font-size: 13px;
       }
       .tm-add-controls button.add-btn {
-        background: #9147ff;
+        background: #28a745;
         border: none;
         color: #fff;
         padding: 6px 10px;
@@ -365,7 +365,7 @@
         font-size: 12px;
       }
       .tm-add-controls button.add-btn:hover {
-        background: #772ce8;
+        background: #218838;
       }
       .tm-add-controls button.import-btn {
         background: #555;
