@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.46
+// @version      1.47
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
@@ -431,6 +431,30 @@
         font-size: 12px;
       }
       .tm-list li button.remove-btn:hover { color: #f28482; }
+      /* Under-construction overlay */
+      .tm-add-controls.under-construction {
+        position: relative;
+        pointer-events: none;
+      }
+      .tm-add-controls.under-construction::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: repeating-linear-gradient(135deg, #ffff0080 0, #ffff0080 15px, black 15px, black 30px);
+        opacity: 1;
+        z-index: 1;
+      }
+      .tm-add-controls.under-construction::after {
+        content: "UNDER CONSTRUCTION";
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        color: #fff;
+        font-size: 20px;
+        font-weight: bold;
+        white-space: nowrap;
+        z-index: 2;
+      }
     `);
 
     // Header
@@ -548,7 +572,8 @@
     const input = document.getElementById('tm-channel-input')
     const raw = input.value.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
     if (!raw) { showToast('Please enter a channel name.', 'red'); return }
-    if (!/^[a-z0-9_]{4,25}$/.test(raw)) {
+    // 3–26 characters, lowercase letters, digits or underscores
+    if (!/^[a-z0-9_]{3,26}$/.test(raw)) {
       showToast('Invalid username format', 'red')
       return
     }
@@ -570,7 +595,8 @@
 async function onAddCurrent() {
     const current = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
     if (!current) { showToast('Not on a channel page.', 'red'); return }
-    if (!/^[a-z0-9_]{4,25}$/.test(current)) {
+    // Current channel should also respect the 3–26 character rule
+    if (!/^[a-z0-9_]{3,26}$/.test(current)) {
       showToast('Invalid channel', 'red')
       return
     }
