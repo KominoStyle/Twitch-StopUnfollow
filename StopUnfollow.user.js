@@ -105,10 +105,12 @@
 
   // Helper to verify if a Twitch username exists
   function checkTwitchUser(username) {
+    const clientId = 'kimne78kx3ncx6brgo4mv6wki5h1ko'
     return new Promise(resolve => {
       GM.xmlHttpRequest({
-        method: 'HEAD',
-        url: `https://passport.twitch.tv/usernames/${encodeURIComponent(username)}`,
+        method: 'GET',
+        url: `https://passport.twitch.tv/usernames/${encodeURIComponent(username)}?client_id=${clientId}`,
+        headers: { 'Client-ID': clientId },
         onload: res => {
           console.log('checkTwitchUser status', res.status, 'for', username)
           if (res.status === 200) {
