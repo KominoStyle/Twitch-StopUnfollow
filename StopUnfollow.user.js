@@ -94,8 +94,6 @@
   // 2) Storage Helpers
   //////////////////////////////
   const STORAGE_KEY_CHANNELS = 'lockedTwitchChannels'
-  const ENCODE_SHIFT = 13
-  const ENCODE_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789_'
   function getLockedChannels() {
     const raw = GM_getValue(STORAGE_KEY_CHANNELS)
     return Array.isArray(raw) ? raw : []
@@ -684,24 +682,6 @@
       updateAddCurrentButtonState()
       applySearchFilter()
     }
-      function encodeName(name) {
-        return Array.from(name).map(ch => {
-          const idx = ENCODE_CHARS.indexOf(ch)
-          return idx === -1
-            ? ch
-            : ENCODE_CHARS[(idx + ENCODE_SHIFT) % ENCODE_CHARS.length]
-        }).join('')
-      }
-      function decodeName(str) {
-        if (typeof str !== 'string') return null
-        let result = ''
-        for (const ch of str) {
-          const idx = ENCODE_CHARS.indexOf(ch)
-          if (idx === -1) return null
-          result += ENCODE_CHARS[(idx - ENCODE_SHIFT + ENCODE_CHARS.length) % ENCODE_CHARS.length]
-        }
-        return result
-      }
       function handleExportClick() {
         let list
         const checked = Array.from(document.querySelectorAll('.tm-select-checkbox:checked'))
@@ -711,26 +691,26 @@
           list = getLockedChannels()
         }
         if (list.length === 0) { showToast('Nothing to export', 'red'); return }
-        const encoded = list.map(encodeName)
-        const json = JSON.stringify(encoded)
+        const json = JSON.stringify(list)
         navigator.clipboard.writeText(json).then(
           () => showToast('Copied to clipboard', 'green'),
           () => showToast('Failed to copy', 'red')
         )
       }
       async function handleImportClick() {
-        const text = prompt('Paste exported list (encoded JSON)')
+        const text = prompt('Paste channel list (JSON array or comma/space/newline separated):')
         if (!text) return
         let parts
         try {
-          const parsed = JSON.parse(text)
-          if (!Array.isArray(parsed) || !parsed.every(str => typeof str === 'string')) {
-            throw new Error()
+          if (text.trim().startsWith('[')) {
+            const parsed = JSON.parse(text)
+            if (!Array.isArray(parsed) || !parsed.every(str => typeof str === 'string')) throw new Error()
+            parts = parsed
+          } else {
+            parts = text.split(/[,\s]+/)
           }
-          parts = parsed.map(str => decodeName(str))
-          if (parts.some(v => !v)) throw new Error()
         } catch {
-          showToast('Invalid export data', 'red')
+          showToast('Invalid list format', 'red')
           return
         }
         let added = 0
