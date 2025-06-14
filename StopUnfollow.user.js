@@ -378,6 +378,7 @@
         background: #666;
       }
       .tm-add-current {
+        align-self: flex-start;
         background: #444;
         border: none;
         color: #fff;
@@ -584,17 +585,9 @@
     const input = document.createElement('input'); input.type = 'text'; input.id = 'tm-channel-input'; input.placeholder = 'e.g. streamername';
     const addBtn = document.createElement('button'); addBtn.className = 'add-btn'; addBtn.id = 'tm-add-btn'; addBtn.textContent = 'Add';
     controls.append(input, addBtn);
-    const addCurrent = document.createElement('button');
-    addCurrent.className = 'tm-add-current';
-    addCurrent.id = 'tm-add-current';
-    addCurrent.textContent = '+ Add Current Channel';
-    const actionToggle = document.createElement('button');
-    actionToggle.id = 'tm-action-toggle';
-    actionToggle.textContent = 'Action';
-    const addActions = document.createElement('div');
-    addActions.className = 'tm-add-actions';
-    addActions.append(addCurrent, actionToggle);
-    addSection.append(controls, addActions);
+    const addCurrent = document.createElement('button'); addCurrent.className = 'tm-add-current'; addCurrent.id = 'tm-add-current'; addCurrent.textContent = '+ Add Current Channel';
+    const importBtn = document.createElement('button'); importBtn.className = 'import-btn'; importBtn.id = 'tm-import-btn'; importBtn.textContent = 'Import List';
+    addSection.append(controls, addCurrent, importBtn);
     body.append(addSection);
 
     // List Header
