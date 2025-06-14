@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.49
+// @version      1.50
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
@@ -105,18 +105,16 @@
 
   // Helper to verify if a Twitch username exists
   function checkTwitchUser(username) {
-    const clientId = 'kimne78kx3ncx6brgo4mv6wki5h1ko'
     return new Promise(resolve => {
       GM.xmlHttpRequest({
-        method: 'GET',
-        url: `https://passport.twitch.tv/usernames/${encodeURIComponent(username)}?client_id=${clientId}`,
-        headers: { 'Client-ID': clientId },
+        method: 'HEAD',
+        url: `https://passport.twitch.tv/usernames/${encodeURIComponent(username)}`,
         onload: res => {
           console.log('checkTwitchUser status', res.status, 'for', username)
           if (res.status === 200) {
-            resolve(true) // Username exists
+            resolve(true) // Username exists (taken)
           } else if (res.status === 204) {
-            resolve(false) // Username not found
+            resolve(false) // Username not found (available)
           } else {
             console.warn('Unexpected status checking username:', res.status)
             resolve(null)
