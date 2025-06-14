@@ -130,6 +130,49 @@
     })
   }
 
+  // Helper to verify if a user exists and is not banned/suspended
+  function checkTwitchUserStatus(username) {
+    const clientId = 'kimne78kx3ncx6brgo4mv6wki5h1ko'
+    return new Promise(resolve => {
+      GM.xmlHttpRequest({
+        method: 'GET',
+        url: `https://api.twitch.tv/helix/users?login=${encodeURIComponent(username)}`,
+        headers: {
+          'Client-ID': clientId,
+          'Accept': 'application/json'
+        },
+        onload: res => {
+          console.log('checkTwitchUserStatus status', res.status, 'for', username)
+          if (res.status === 200) {
+            try {
+              const data = JSON.parse(res.responseText)
+              const user = Array.isArray(data.data) ? data.data[0] : null
+              console.log('checkTwitchUserStatus data', data, 'user', user)
+              if (!user) {
+                resolve({ exists: false, banned: false })
+              } else {
+                const banned = Boolean(user.banned) || Boolean(user.suspended) || user.type === 'banned'
+                resolve({ exists: true, banned })
+              }
+            } catch (e) {
+              console.warn('Error parsing user status:', e)
+              resolve({ exists: null, banned: null })
+            }
+          } else if (res.status === 404) {
+            resolve({ exists: false, banned: false })
+          } else {
+            console.warn('Unexpected status checking user status:', res.status)
+            resolve({ exists: null, banned: null })
+          }
+        },
+        onerror: err => {
+          console.warn('Error checking user status:', err)
+          resolve({ exists: null, banned: null })
+        }
+      })
+    })
+  }
+
   //////////////////////////////
   // 3) “Unfollow” Button Logic
   //////////////////////////////
@@ -484,6 +527,16 @@
         align-self: flex-end;
       }
       #tm-delete-selected:hover { background: #c5303e; }
+      #tm-check-users {
+        background: #f0ad4e;
+        border: none;
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      #tm-check-users:hover { background: #ec971f; }
       /* Multi-select checkboxes */
       .tm-select-checkbox { display: none; margin-right: 6px; cursor: pointer; }
       #tm-locked-list.selection-mode .tm-select-checkbox { display: inline-block; }
@@ -504,6 +557,7 @@
         border-bottom: 1px solid #333;
         font-size: 13px;
       }
+      .tm-list li.invalid-user { background: #652020; }
       .tm-select-checkbox {
         margin-right: 6px;
         cursor: pointer;
@@ -645,7 +699,10 @@
     const importExport = document.createElement('div');
     importExport.className = 'tm-import-export';
     importExport.append(importBtn, exportBtn);
-    listActions.append(importExport, deleteSelected);
+    const checkUsersBtn = document.createElement('button');
+    checkUsersBtn.id = 'tm-check-users';
+    checkUsersBtn.textContent = 'Check Saved Users';
+    listActions.append(importExport, deleteSelected, checkUsersBtn);
 
     listHeader.append(listTop, listActions);
     body.append(listHeader);
@@ -762,6 +819,20 @@
       showToast(added ? `${added} added` : 'No valid channels', added ? 'green' : 'red')
       updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
     }
+
+    async function handleCheckUsersClick() {
+      const channels = getLockedChannels()
+      if (channels.length === 0) { showToast('List already empty', 'red'); return }
+      showToast('Checking users…', 'green')
+      for (const name of channels) {
+        const status = await checkTwitchUserStatus(name)
+        const li = document.querySelector(`.tm-select-checkbox[data-name="${name}"]`)
+        if (!li) continue
+        const item = li.parentElement
+        if (!status.exists || status.banned) item.classList.add('invalid-user')
+        else item.classList.remove('invalid-user')
+      }
+    }
     addBtn.addEventListener('click', handleAddButtonClick)
     addCurrent.addEventListener('click', handleAddCurrentClick)
     searchInput.addEventListener('input', handleSearchInputChange)
@@ -771,6 +842,7 @@
     deleteSelected.addEventListener('click', handleDeleteSelectedClick)
     importBtn.addEventListener('click', handleImportClick)
     exportBtn.addEventListener('click', handleExportClick)
+    checkUsersBtn.addEventListener('click', handleCheckUsersClick)
 
     // Initialize state
     refreshListUI(); updateAddCurrentButtonState(); applySearchFilter(); updateDeleteSelectedButtonState();
@@ -787,13 +859,17 @@
       return
     }
     showToast('Checking username…', 'green')
-    const exists = await checkTwitchUser(raw)
-    if (exists === false) {
+    const status = await checkTwitchUserStatus(raw)
+    if (status.exists === false) {
       showToast('User not found', 'red')
       return
     }
-    if (exists === null) {
+    if (status.exists === null) {
       showToast('Unable to verify username', 'red')
+      return
+    }
+    if (status.banned) {
+      showToast('User is banned or suspended', 'red')
       return
     }
     const added = await addChannel(raw)
@@ -812,13 +888,17 @@ async function onAddCurrent() {
       return
     }
     showToast('Checking username…', 'green')
-    const exists = await checkTwitchUser(current)
-    if (exists === false) {
+    const status = await checkTwitchUserStatus(current)
+    if (status.exists === false) {
       showToast('User not found', 'red')
       return
     }
-    if (exists === null) {
+    if (status.exists === null) {
       showToast('Unable to verify username', 'red')
+      return
+    }
+    if (status.banned) {
+      showToast('User is banned or suspended', 'red')
       return
     }
     const added = await addChannel(current)
@@ -964,10 +1044,12 @@ async function onAddCurrent() {
     const toggle = document.getElementById('tm-action-toggle')
     const importBtn = document.getElementById('tm-import-btn')
     const exportBtn = document.getElementById('tm-export-btn')
+    const checkBtn = document.getElementById('tm-check-users')
     if (btn) btn.disabled = getLockedChannels().length === 0
     if (toggle) toggle.disabled = getLockedChannels().length === 0
     if (importBtn) importBtn.disabled = false
     if (exportBtn) exportBtn.disabled = getLockedChannels().length === 0
+    if (checkBtn) checkBtn.disabled = getLockedChannels().length === 0
   }
 
   async function addChannel(channelName) {
