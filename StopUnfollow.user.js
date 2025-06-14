@@ -658,7 +658,6 @@
     // Event bindings
     async function handleAddButtonClick() { await onAddByText() }
     async function handleAddCurrentClick() { await onAddCurrent() }
-    async function handleImportClick() { await onImportList() }
     function handleSearchInputChange() {
       clearBtn.style.display = searchInput.value ? 'block' : 'none'
       refreshListUI()
