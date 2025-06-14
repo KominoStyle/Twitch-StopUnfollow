@@ -105,16 +105,18 @@
 
   // Helper to verify if a Twitch username exists
   function checkTwitchUser(username) {
+    const clientId = 'kimne78kx3ncx6brgo4mv6wki5h1ko'
     return new Promise(resolve => {
       GM.xmlHttpRequest({
-        method: 'HEAD',
-        url: `https://passport.twitch.tv/usernames/${encodeURIComponent(username)}`,
+        method: 'GET',
+        url: `https://passport.twitch.tv/usernames/${encodeURIComponent(username)}?client_id=${clientId}`,
+        headers: { 'Client-ID': clientId },
         onload: res => {
           console.log('checkTwitchUser status', res.status, 'for', username)
           if (res.status === 200) {
-            resolve(true) // Username exists (taken)
+            resolve(true) // Username exists
           } else if (res.status === 204) {
-            resolve(false) // Username not found (available)
+            resolve(false) // Username not found
           } else {
             console.warn('Unexpected status checking username:', res.status)
             resolve(null)
@@ -656,7 +658,6 @@
     // Event bindings
     async function handleAddButtonClick() { await onAddByText() }
     async function handleAddCurrentClick() { await onAddCurrent() }
-    async function handleImportClick() { await onImportList() }
     function handleSearchInputChange() {
       clearBtn.style.display = searchInput.value ? 'block' : 'none'
       refreshListUI()
@@ -737,29 +738,30 @@
         )
       }
       async function handleImportClick() {
-        const text = prompt('Paste channel list (JSON array):')
-        if (!text) return
-        let parts
-        try {
-          const parsed = JSON.parse(text)
-          if (!Array.isArray(parsed) || !parsed.every(str => typeof str === 'string')) throw new Error()
-          parts = parsed
-        } catch {
-          showToast('Invalid list format', 'red')
-          return
-        }
-        let added = 0
-        for (const name of parts) {
-          const cleaned = name.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
-          if (!cleaned) continue
+      const text = prompt('Paste channel list (JSON array):')
+      if (!text) return
+      let parts
+      try {
+        const parsed = JSON.parse(text)
+        if (!Array.isArray(parsed) || !parsed.every(str => typeof str === 'string')) throw new Error()
+        parts = parsed
+      } catch {
+        showToast('Invalid list format', 'red')
+        return
+      }
+      showToast('Checking usernames…', 'green')
+      let added = 0
+      for (const name of parts) {
+        const cleaned = name.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
+        if (!cleaned || !/^.{4,26}$/u.test(cleaned)) continue
+        const exists = await checkTwitchUser(cleaned)
+        if (exists) {
           if (await addChannel(cleaned)) added++
         }
-        showToast(added ? `${added} added` : 'No new channels', added ? 'green' : 'red')
-        updateAddCurrentButtonState()
-        refreshListUI()
-        applySearchFilter()
-        updateDeleteSelectedButtonState()
       }
+      showToast(added ? `${added} added` : 'No valid channels', added ? 'green' : 'red')
+      updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
+    }
     addBtn.addEventListener('click', handleAddButtonClick)
     addCurrent.addEventListener('click', handleAddCurrentClick)
     importBtn.addEventListener('click', handleImportClick)
@@ -781,7 +783,7 @@
     const raw = input.value.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
     if (!raw) { showToast('Please enter a channel name.', 'red'); return }
     // 3–26 characters, allow any letters or symbols
-    if (!/^.{3,26}$/u.test(raw)) {
+    if (!/^.{4,26}$/u.test(raw)) {
       showToast('Invalid username format', 'red')
       return
     }
@@ -806,7 +808,7 @@ async function onAddCurrent() {
     const current = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
     if (!current) { showToast('Not on a channel page.', 'red'); return }
     // Current channel should also respect the 3–26 character rule
-    if (!/^.{3,26}$/u.test(current)) {
+    if (!/^.{4,26}$/u.test(current)) {
       showToast('Invalid channel', 'red')
       return
     }
@@ -823,22 +825,6 @@ async function onAddCurrent() {
     const added = await addChannel(current)
     showToast(added ? `${current} added` : '✓ Already saved', added ? 'green' : 'red')
     updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
-}
-
-async function onImportList() {
-    const text = prompt('Paste channels separated by spaces or new lines:')
-    if (!text) return
-    const names = text.split(/\s+/).map(n => n.trim().toLowerCase()).filter(Boolean)
-    if (!names.length) { showToast('No channels provided', 'red'); return }
-    let added = 0
-    for (const name of names) {
-      if (!/^.{3,26}$/u.test(name)) continue
-      const exists = await checkTwitchUser(name)
-      if (exists !== true) continue
-      if (await addChannel(name)) added++
-    }
-    showToast(added ? `Imported ${added}` : 'No valid users added', added ? 'green' : 'red')
-    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); disableUnfollowIfSaved()
 }
 
   function showToast(message, color) {
