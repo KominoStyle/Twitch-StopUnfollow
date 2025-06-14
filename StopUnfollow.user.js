@@ -752,6 +752,9 @@
         for (const name of parts) {
           const cleaned = name.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
           if (!cleaned) continue
+          if (!/^.{3,26}$/u.test(cleaned)) continue
+          const exists = await checkTwitchUser(cleaned)
+          if (exists !== true) continue
           if (await addChannel(cleaned)) added++
         }
         showToast(added ? `${added} added` : 'No new channels', added ? 'green' : 'red')
