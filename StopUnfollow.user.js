@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.48
+// @version      1.49
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
@@ -336,6 +336,18 @@
       .tm-add-controls button.add-btn:hover {
         background: #772ce8;
       }
+      .tm-add-controls button.import-btn {
+        background: #555;
+        border: none;
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .tm-add-controls button.import-btn:hover {
+        background: #666;
+      }
       .tm-add-current {
         align-self: flex-start;
         background: #444;
@@ -502,7 +514,8 @@
     const addBtn = document.createElement('button'); addBtn.className = 'add-btn'; addBtn.id = 'tm-add-btn'; addBtn.textContent = 'Add';
     controls.append(input, addBtn);
     const addCurrent = document.createElement('button'); addCurrent.className = 'tm-add-current'; addCurrent.id = 'tm-add-current'; addCurrent.textContent = '+ Add Current Channel';
-    addSection.append(controls, addCurrent);
+    const importBtn = document.createElement('button'); importBtn.className = 'import-btn'; importBtn.id = 'tm-import-btn'; importBtn.textContent = 'Import List';
+    addSection.append(controls, addCurrent, importBtn);
     body.append(addSection);
 
     // List Header
@@ -539,6 +552,7 @@
     // Event bindings
     async function handleAddButtonClick() { await onAddByText() }
     async function handleAddCurrentClick() { await onAddCurrent() }
+    async function handleImportClick() { await onImportList() }
     function handleSearchInputChange() {
       clearBtn.style.display = searchInput.value ? 'block' : 'none'
       refreshListUI()
@@ -559,6 +573,7 @@
 
     addBtn.addEventListener('click', handleAddButtonClick)
     addCurrent.addEventListener('click', handleAddCurrentClick)
+    importBtn.addEventListener('click', handleImportClick)
     searchInput.addEventListener('input', handleSearchInputChange)
     clearBtn.addEventListener('click', handleClearSearchClick)
     sortSelect.addEventListener('change', handleSortChange)
@@ -612,6 +627,22 @@ async function onAddCurrent() {
     }
     const added = await addChannel(current)
     showToast(added ? `${current} added` : '✓ Already saved', added ? 'green' : 'red')
+    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); disableUnfollowIfSaved()
+}
+
+async function onImportList() {
+    const text = prompt('Paste channels separated by spaces or new lines:')
+    if (!text) return
+    const names = text.split(/\s+/).map(n => n.trim().toLowerCase()).filter(Boolean)
+    if (!names.length) { showToast('No channels provided', 'red'); return }
+    let added = 0
+    for (const name of names) {
+      if (!/^.{3,26}$/u.test(name)) continue
+      const exists = await checkTwitchUser(name)
+      if (exists !== true) continue
+      if (await addChannel(name)) added++
+    }
+    showToast(added ? `Imported ${added}` : 'No valid users added', added ? 'green' : 'red')
     updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); disableUnfollowIfSaved()
 }
 

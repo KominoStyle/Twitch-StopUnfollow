@@ -8,6 +8,7 @@ Twitch-StopUnfollow is a Tampermonkey userscript that helps you avoid unfollowin
 - Draggable modal to manage a list of saved channels.
 - One-click button to add the current channel or enter a name manually.
 - Search and sort your saved list.
+- Import multiple channels at once; usernames are validated before adding.
 - Disables the Unfollow button on saved channels across navigation.
 - Automatically checks GitHub for updates and shows an Install button inside the menu when a newer version is detected.
 
@@ -20,9 +21,10 @@ Twitch-StopUnfollow is a Tampermonkey userscript that helps you avoid unfollowin
 
 1. Click your Twitch avatar and select **Stop Unfollow**.
 2. Use the modal to add channels or remove them from the list.
-3. The Unfollow button will be disabled when visiting any saved channel.
-4. The modal can be dragged around and closed with the **×** in the header.
-5. When a newer version is published a notice with an **Install** button appears inside the Stop Unfollow menu; click it to open the latest script.
+3. Use the **Import List** button to paste multiple names at once.
+4. The Unfollow button will be disabled when visiting any saved channel.
+5. The modal can be dragged around and closed with the **×** in the header.
+6. When a newer version is published a notice with an **Install** button appears inside the Stop Unfollow menu; click it to open the latest script.
 
 ## License
 
