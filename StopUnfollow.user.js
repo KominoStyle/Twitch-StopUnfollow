@@ -540,6 +540,29 @@
         white-space: nowrap;
         z-index: 2;
       }
+      /* Avatar dropdown styles */
+      .tmMenuItemWrapper { padding: 2px 0; }
+      .tmMenuItem { display: block; color: inherit; text-decoration: none; }
+      .tmMenuItem .tmMenuContainer {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 4px;
+      }
+      .tmMenuItem:hover .tmMenuContainer {
+        background: rgba(255,255,255,0.1);
+      }
+      .tmDropdownIcon,
+      .tmDropdownIconContainer,
+      .tmDropdownIconAspect,
+      .tmDropdownIconSpacer,
+      .tmStopUnfollowIcon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .tmDropdownLabel { font-size: 14px; }
     `);
 
     // Header
@@ -1006,29 +1029,29 @@ async function onAddCurrent() {
 
     const container = document.createElement('div')
     container.id = 'tm-stop-unfollow-wrapper'
-    container.classList.add('bttvSettingsDropDownWrapper')
+    container.classList.add('tmMenuItemWrapper')
     wrapper.after(container)
 
     const link = document.createElement('a')
     link.id = 'tm-stop-unfollow-menu-btn'
-    link.classList.add('bttvSettingsDropDown')
+    link.classList.add('tmMenuItem')
     link.setAttribute('data-a-target', 'tm-stop-unfollow-dropdown-link')
     link.setAttribute('data-test-selector', 'user-menu-dropdown__tm-stop-unfollow-link')
     link.setAttribute('borderradius', 'border-radius-medium')
     link.setAttribute('href', '#')
 
     const dropdownContainer = document.createElement('div')
-    dropdownContainer.classList.add('dropdownContainer')
+    dropdownContainer.classList.add('tmMenuContainer')
 
     // Icon area
     const dropdownIcon = document.createElement('div')
-    dropdownIcon.classList.add('dropdownIcon')
+    dropdownIcon.classList.add('tmDropdownIcon')
     const dropdownIconContainer = document.createElement('div')
-    dropdownIconContainer.classList.add('dropdownIconContainer')
+    dropdownIconContainer.classList.add('tmDropdownIconContainer')
     const dropdownIconAspect = document.createElement('div')
-    dropdownIconAspect.classList.add('dropdownIconAspect')
+    dropdownIconAspect.classList.add('tmDropdownIconAspect')
     const dropdownIconSpacer = document.createElement('div')
-    dropdownIconSpacer.classList.add('dropdownIconSpacer')
+    dropdownIconSpacer.classList.add('tmDropdownIconSpacer')
 
     const fig = document.createElement('figure')
     fig.classList.add('tmStopUnfollowIcon')
@@ -1050,7 +1073,7 @@ async function onAddCurrent() {
 
     // Label area
     const dropdownLabel = document.createElement('div')
-    dropdownLabel.classList.add('dropdownLabel')
+    dropdownLabel.classList.add('tmDropdownLabel')
     dropdownLabel.textContent = 'Stop Unfollow'
 
     dropdownContainer.appendChild(dropdownIcon)
