@@ -549,7 +549,6 @@
         align-items: center !important;
         position: relative !important;
         padding: 0.5rem !important;
-        gap: 8px;
         border-radius: 4px;
       }
       .tmMenuItem:hover .tmMenuContainer {
