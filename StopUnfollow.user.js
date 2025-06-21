@@ -540,6 +540,37 @@
         white-space: nowrap;
         z-index: 2;
       }
+      /* Avatar dropdown menu styles (built in) */
+      .tmMenuWrapper { padding: 2px 0; }
+      .tmMenuItem { display: block; color: inherit; text-decoration: none; }
+      .tmMenuItem .tmMenuContainer {
+        display: flex !important;
+        -webkit-box-align: center !important;
+        align-items: center !important;
+        position: relative !important;
+        padding: 0.5rem !important;
+        gap: 8px;
+        border-radius: 4px;
+      }
+      .tmMenuItem:hover .tmMenuContainer {
+        background: rgba(255,255,255,0.1);
+      }
+      .tmDropdownIconContainer {
+        display: flex !important;
+        -webkit-box-align: center !important;
+        align-items: center !important;
+        padding-inline-end: 0.5rem !important;
+        flex-shrink: 0 !important;
+      }
+      .tmDropdownIcon,
+      .tm-dropdown-icon-aspect,
+      .tm-dropdown-icon-spacer,
+      .tmStopUnfollowIcon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .tm-dropdown-label { font-size: 14px; }
     `);
 
     // Header
@@ -1006,29 +1037,29 @@ async function onAddCurrent() {
 
     const container = document.createElement('div')
     container.id = 'tm-stop-unfollow-wrapper'
-    container.classList.add('bttvSettingsDropDownWrapper')
+    container.classList.add('tmMenuWrapper')
     wrapper.after(container)
 
     const link = document.createElement('a')
     link.id = 'tm-stop-unfollow-menu-btn'
-    link.classList.add('bttvSettingsDropDown')
+    link.classList.add('tmMenuItem')
     link.setAttribute('data-a-target', 'tm-stop-unfollow-dropdown-link')
     link.setAttribute('data-test-selector', 'user-menu-dropdown__tm-stop-unfollow-link')
     link.setAttribute('borderradius', 'border-radius-medium')
     link.setAttribute('href', '#')
 
-    const dropdownContainer = document.createElement('div')
-    dropdownContainer.classList.add('dropdownContainer')
+    const menuContainer = document.createElement('div')
+    menuContainer.classList.add('tmMenuContainer')
 
     // Icon area
     const dropdownIcon = document.createElement('div')
-    dropdownIcon.classList.add('dropdownIcon')
+    dropdownIcon.classList.add('tmDropdownIcon')
     const dropdownIconContainer = document.createElement('div')
-    dropdownIconContainer.classList.add('dropdownIconContainer')
+    dropdownIconContainer.classList.add('tmDropdownIconContainer')
     const dropdownIconAspect = document.createElement('div')
-    dropdownIconAspect.classList.add('dropdownIconAspect')
+    dropdownIconAspect.classList.add('tm-dropdown-icon-aspect')
     const dropdownIconSpacer = document.createElement('div')
-    dropdownIconSpacer.classList.add('dropdownIconSpacer')
+    dropdownIconSpacer.classList.add('tm-dropdown-icon-spacer')
 
     const fig = document.createElement('figure')
     fig.classList.add('tmStopUnfollowIcon')
@@ -1050,12 +1081,12 @@ async function onAddCurrent() {
 
     // Label area
     const dropdownLabel = document.createElement('div')
-    dropdownLabel.classList.add('dropdownLabel')
+    dropdownLabel.classList.add('tm-dropdown-label')
     dropdownLabel.textContent = 'Stop Unfollow'
 
-    dropdownContainer.appendChild(dropdownIcon)
-    dropdownContainer.appendChild(dropdownLabel)
-    link.appendChild(dropdownContainer)
+    menuContainer.appendChild(dropdownIcon)
+    menuContainer.appendChild(dropdownLabel)
+    link.appendChild(menuContainer)
 
     // Click opens modal
     function handleMenuClick(e) {
