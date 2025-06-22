@@ -164,31 +164,37 @@
   function injectHeaderLockIcon() {
     const channel = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
     if (!channel) return
-    const anchor = document.querySelector('button[data-a-target="unfollow-button"]')
-    const existing = document.getElementById('tm-header-lock-icon')
+    const btn = document.querySelector('button[data-a-target="unfollow-button"]')
+    if (!btn) return
     const saved = getLockedChannels().includes(channel)
 
-    if (!anchor || !saved) {
-      if (existing) existing.remove()
+    const lockIcon = btn.querySelector('#tm-header-lock-icon')
+    const defaultIcon = btn.querySelector('svg:not(#tm-header-lock-icon)')
+
+    if (!saved || !defaultIcon) {
+      if (lockIcon) {
+        lockIcon.remove()
+        if (defaultIcon) defaultIcon.style.display = ''
+      }
       return
     }
-    if (existing) return
+
+    if (lockIcon) return
+
+    defaultIcon.style.display = 'none'
 
     const svgNS = 'http://www.w3.org/2000/svg'
     const icon = document.createElementNS(svgNS, 'svg')
     icon.id = 'tm-header-lock-icon'
-    icon.setAttribute('width', '20')
-    icon.setAttribute('height', '20')
+    icon.setAttribute('width', defaultIcon.getAttribute('width') || '20')
+    icon.setAttribute('height', defaultIcon.getAttribute('height') || '20')
     icon.setAttribute('viewBox', '0 0 20 20')
     icon.setAttribute('fill', '#9147ff')
     icon.title = 'Unfollow disabled for this channel'
-    icon.style.marginLeft = '8px'
-    icon.style.verticalAlign = 'middle'
     icon.innerHTML = `
       <path fill-rule="evenodd" d="M14.001 5.99A3.992 3.992 0 0 0 10.01 2h-.018a3.992 3.992 0 0 0-3.991 3.99V8H3.999v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8h-1.998V5.99zm-2 2.01V5.995A1.996 1.996 0 0 0 10.006 4h-.01a1.996 1.996 0 0 0-1.995 1.995V8h4z" clip-rule="evenodd"></path>
     `
-    // purely decorative icon indicating unfollow is locked
-    anchor.parentNode.insertBefore(icon, anchor.nextSibling)
+    btn.insertBefore(icon, defaultIcon)
   }
 
   //////////////////////////////
@@ -780,7 +786,7 @@
         }
       }
       showToast(added ? `${added} added` : 'No valid channels', added ? 'green' : 'red')
-      updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
+      updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved(); injectHeaderLockIcon()
     }
     addBtn.addEventListener('click', handleAddButtonClick)
     addCurrent.addEventListener('click', handleAddCurrentClick)
@@ -819,7 +825,7 @@
     const added = await addChannel(raw)
     showToast(added ? `${raw} added` : '✓ Already saved', added ? 'green' : 'red')
 
-    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
+    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved(); injectHeaderLockIcon()
 }
 
 
@@ -843,7 +849,7 @@ async function onAddCurrent() {
     }
     const added = await addChannel(current)
     showToast(added ? `${current} added` : '✓ Already saved', added ? 'green' : 'red')
-    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
+    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved(); injectHeaderLockIcon()
 }
 
   function showToast(message, color) {
@@ -1005,6 +1011,7 @@ async function onAddCurrent() {
     const current = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
     if (current === channelName) {
       enableUnfollowIfPresent()
+      injectHeaderLockIcon()
     }
   }
 
