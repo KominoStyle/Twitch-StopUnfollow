@@ -541,6 +541,13 @@
       /* Avatar dropdown menu styles (built in) */
       .tmMenuWrapper { padding: 2px 0; }
       .tmMenuItem { display: block; color: inherit; text-decoration: none; }
+      .tmMenuItem:link,
+      .tmMenuItem:visited,
+      .tmMenuItem:hover,
+      .tmMenuItem:active {
+        color: inherit;
+        text-decoration: none;
+      }
       .tmMenuItem .tmMenuContainer {
         display: flex !important;
         -webkit-box-align: center !important;
