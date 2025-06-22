@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.52
+// @version      1.53
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
@@ -20,6 +20,7 @@
   'use strict'
 
   const RAW_URL = 'https://raw.githubusercontent.com/KominoStyle/Twitch-StopUnfollow/main/StopUnfollow.user.js'
+  const TWITCH_CLIENT_ID = 'kimne78kx3ncx6brgo4mv6wki5h1ko'
   let latestVersion = null
 
   function compareVersions(a, b) {
@@ -97,7 +98,11 @@
   const STORAGE_KEY_CHANNELS = 'lockedTwitchChannels'
   function getLockedChannels() {
     const raw = GM_getValue(STORAGE_KEY_CHANNELS)
-    return Array.isArray(raw) ? raw : []
+    if (!Array.isArray(raw)) return []
+    if (raw.length > 0 && typeof raw[0] === 'string') {
+      return raw.map(login => ({ login, id: null }))
+    }
+    return raw.filter(obj => obj && typeof obj.login === 'string')
   }
   function setLockedChannels(list) {
     GM_setValue(STORAGE_KEY_CHANNELS, list)
@@ -105,12 +110,11 @@
 
   // Helper to verify if a Twitch username exists
   function checkTwitchUser(username) {
-    const clientId = 'kimne78kx3ncx6brgo4mv6wki5h1ko'
     return new Promise(resolve => {
       GM.xmlHttpRequest({
         method: 'GET',
-        url: `https://passport.twitch.tv/usernames/${encodeURIComponent(username)}?client_id=${clientId}`,
-        headers: { 'Client-ID': clientId },
+        url: `https://passport.twitch.tv/usernames/${encodeURIComponent(username)}?client_id=${TWITCH_CLIENT_ID}`,
+        headers: { 'Client-ID': TWITCH_CLIENT_ID },
         onload: res => {
           console.log('checkTwitchUser status', res.status, 'for', username)
           if (res.status === 200) {
@@ -130,6 +134,52 @@
     })
   }
 
+  function fetchTwitchUser(login) {
+    return new Promise(resolve => {
+      GM.xmlHttpRequest({
+        method: 'GET',
+        url: `https://api.twitch.tv/helix/users?login=${encodeURIComponent(login)}`,
+        headers: { 'Client-ID': TWITCH_CLIENT_ID, 'Accept': 'application/json' },
+        onload: res => {
+          if (res.status !== 200) { resolve(null); return }
+          try {
+            const data = JSON.parse(res.responseText)
+            if (data.data && data.data.length > 0) {
+              const u = data.data[0]
+              resolve({ login: u.login.toLowerCase(), id: u.id })
+              return
+            }
+          } catch {}
+          resolve(null)
+        },
+        onerror: () => resolve(null)
+      })
+    })
+  }
+
+  function fetchTwitchUserById(id) {
+    return new Promise(resolve => {
+      GM.xmlHttpRequest({
+        method: 'GET',
+        url: `https://api.twitch.tv/helix/users?id=${encodeURIComponent(id)}`,
+        headers: { 'Client-ID': TWITCH_CLIENT_ID, 'Accept': 'application/json' },
+        onload: res => {
+          if (res.status !== 200) { resolve(null); return }
+          try {
+            const data = JSON.parse(res.responseText)
+            if (data.data && data.data.length > 0) {
+              const u = data.data[0]
+              resolve({ login: u.login.toLowerCase(), id: u.id })
+              return
+            }
+          } catch {}
+          resolve(null)
+        },
+        onerror: () => resolve(null)
+      })
+    })
+  }
+
   //////////////////////////////
   // 3) “Unfollow” Button Logic
   //////////////////////////////
@@ -137,7 +187,7 @@
     const channel = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
     if (!channel) return
     const saved = getLockedChannels()
-    if (!saved.includes(channel)) return
+    if (!saved.some(ch => ch.login === channel)) return
     const poll = setInterval(() => {
       const btn = document.querySelector('button[data-a-target="unfollow-button"]')
       if (!btn) return
@@ -166,7 +216,7 @@
     if (!channel) return
     const btn = document.querySelector('button[data-a-target="unfollow-button"]')
     if (!btn) return
-    const saved = getLockedChannels().includes(channel)
+    const saved = getLockedChannels().some(ch => ch.login === channel)
 
     const lockIcon = btn.querySelector('#tm-header-lock-icon')
     const defaultIcon = btn.querySelector('svg:not(#tm-header-lock-icon)')
@@ -742,7 +792,7 @@
       const checkboxes = Array.from(document.querySelectorAll('.tm-select-checkbox:checked'))
       let targets
       if (checkboxes.length === 0) {
-        targets = getLockedChannels()
+        targets = getLockedChannels().map(c => c.login)
         if (targets.length === 0) { showToast('List already empty', 'red'); exitSelectionMode(); return }
         if (!confirm('Clear entire Saved Channels list?')) { exitSelectionMode(); return }
       } else {
@@ -763,7 +813,7 @@
         if (checked.length > 0) {
           list = checked.map(cb => cb.dataset.name)
         } else {
-          list = getLockedChannels()
+          list = getLockedChannels().map(c => c.login)
         }
         if (list.length === 0) { showToast('Nothing to export', 'red'); return }
         const json = JSON.stringify(list)
@@ -778,8 +828,8 @@
       let parts
       try {
         const parsed = JSON.parse(text)
-        if (!Array.isArray(parsed) || !parsed.every(str => typeof str === 'string')) throw new Error()
-        parts = parsed
+        if (!Array.isArray(parsed)) throw new Error()
+        parts = parsed.map(it => typeof it === 'string' ? it : it.login)
       } catch {
         showToast('Invalid list format', 'red')
         return
@@ -920,10 +970,10 @@ async function onAddCurrent() {
     let ordered
     switch (sortMode) {
       case 'alpha-asc':
-        ordered = savedChannels.slice().sort((a, b) => a.localeCompare(b))
+        ordered = savedChannels.slice().sort((a, b) => a.login.localeCompare(b.login))
         break
       case 'alpha-desc':
-        ordered = savedChannels.slice().sort((a, b) => b.localeCompare(a))
+        ordered = savedChannels.slice().sort((a, b) => b.login.localeCompare(a.login))
         break
       case 'first':
         ordered = savedChannels.slice()
@@ -933,24 +983,25 @@ async function onAddCurrent() {
         ordered = savedChannels.slice().reverse()
     }
 
-    ordered.forEach(channelName => {
+    ordered.forEach(entry => {
       const li = document.createElement('li')
       const checkbox = document.createElement('input')
       checkbox.type = 'checkbox'
       checkbox.className = 'tm-select-checkbox'
-      checkbox.dataset.name = channelName
+      checkbox.dataset.name = entry.login
+      li.dataset.id = entry.id || ''
       checkbox.addEventListener('change', updateDeleteSelectedButtonState)
       const span = document.createElement('span')
-      span.textContent = channelName
+      span.textContent = entry.login
       li.appendChild(checkbox)
       li.appendChild(span)
       const removeBtn = document.createElement('button')
       removeBtn.textContent = '✕'
       removeBtn.className = 'remove-btn'
-      removeBtn.title = `Remove "${channelName}" from Saved Channels`
+      removeBtn.title = `Remove "${entry.login}" from Saved Channels`
       async function handleRemoveClick() {
-        await removeChannel(channelName)
-        showToast(`${channelName} removed from Saved Channels`, 'red')
+        await removeChannel(entry.login)
+        showToast(`${entry.login} removed from Saved Channels`, 'red')
         updateAddCurrentButtonState()
         refreshListUI()
         applySearchFilter()
@@ -965,6 +1016,25 @@ async function onAddCurrent() {
       titleEl.textContent = `Saved Channels (Count: ${savedChannels.length})`
     }
     updateDeleteSelectedButtonState()
+
+    // Resolve potential renames
+    const checks = savedChannels.map(async ch => {
+      if (!ch.id) return
+      const info = await fetchTwitchUserById(ch.id)
+      if (info && info.login !== ch.login) {
+        ch.login = info.login
+        const span = ul.querySelector(`li[data-id="${ch.id}"] span`)
+        if (span) span.textContent = info.login
+        return true
+      }
+      return false
+    })
+    Promise.all(checks).then(results => {
+      if (results.some(r => r)) {
+        setLockedChannels(savedChannels)
+        updateAddCurrentButtonState()
+      }
+    })
   }
 
   function applySearchFilter() {
@@ -981,7 +1051,7 @@ async function onAddCurrent() {
     const currentChannel = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
     const saved = getLockedChannels()
     btn.classList.remove('green', 'red')
-    if (currentChannel && saved.includes(currentChannel)) {
+    if (currentChannel && saved.some(ch => ch.login === currentChannel)) {
       btn.classList.add('red')
       btn.textContent = '✓ Already Saved'
       btn.disabled = true
@@ -1007,15 +1077,17 @@ async function onAddCurrent() {
 
   async function addChannel(channelName) {
     let lockedChannels = getLockedChannels()
-    if (lockedChannels.includes(channelName)) return false
-    lockedChannels.push(channelName)
+    if (lockedChannels.some(ch => ch.login === channelName)) return false
+    const user = await fetchTwitchUser(channelName)
+    if (!user) return false
+    lockedChannels.push(user)
     setLockedChannels(lockedChannels)
     return true
   }
 
   async function removeChannel(channelName) {
     let lockedChannels = getLockedChannels()
-    lockedChannels = lockedChannels.filter(savedChannel => savedChannel !== channelName)
+    lockedChannels = lockedChannels.filter(savedChannel => savedChannel.login !== channelName)
     setLockedChannels(lockedChannels)
     const current = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
     if (current === channelName) {
