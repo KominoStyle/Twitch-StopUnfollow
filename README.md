@@ -11,6 +11,7 @@ Twitch-StopUnfollow is a Tampermonkey userscript that helps you avoid unfollowin
 - Import multiple channels at once; usernames are validated before adding.
 - Disables the Unfollow button on saved channels across navigation.
 - Automatically checks GitHub for updates and shows an Install button inside the menu when a newer version is detected.
+- Detects when a saved channel has been renamed and lets you update the entry with one click.
 
 ## Installation
 

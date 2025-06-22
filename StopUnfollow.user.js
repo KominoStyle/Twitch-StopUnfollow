@@ -130,6 +130,43 @@
     })
   }
 
+  // Helper to detect if a username was renamed and return the new name
+  const renameCache = {}
+  function resolveRenamedChannel(username) {
+    if (renameCache.hasOwnProperty(username)) {
+      return Promise.resolve(renameCache[username])
+    }
+    const clientId = 'kimne78kx3ncx6brgo4mv6wki5h1ko'
+    return new Promise(resolve => {
+      const url = `https://passport.twitch.tv/usernames/${encodeURIComponent(username)}?client_id=${clientId}`
+      GM.xmlHttpRequest({
+        method: 'GET',
+        url,
+        headers: { 'Client-ID': clientId },
+        onload: res => {
+          let newName = null
+          if (res.finalUrl && res.finalUrl !== url) {
+            const m = res.finalUrl.match(/\/usernames\/([^/?]+)/)
+            if (m && m[1] && m[1].toLowerCase() !== username.toLowerCase()) {
+              newName = m[1].toLowerCase()
+            }
+          } else if (/location:/i.test(res.responseHeaders || '')) {
+            const m = res.responseHeaders.match(/location:\s*.*\/usernames\/([^/?]+)/i)
+            if (m && m[1] && m[1].toLowerCase() !== username.toLowerCase()) {
+              newName = m[1].toLowerCase()
+            }
+          }
+          renameCache[username] = newName
+          resolve(newName)
+        },
+        onerror: () => {
+          renameCache[username] = null
+          resolve(null)
+        }
+      })
+    })
+  }
+
   //////////////////////////////
   // 3) “Unfollow” Button Logic
   //////////////////////////////
@@ -502,10 +539,22 @@
         border-bottom: 1px solid #333;
         font-size: 13px;
       }
+      .tm-list li.renamed { color: #f87171; }
       .tm-select-checkbox {
         margin-right: 6px;
         cursor: pointer;
       }
+      .tm-list li button.rename-btn {
+        background: #28a745;
+        border: none;
+        color: #fff;
+        padding: 2px 6px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 11px;
+        margin-right: 4px;
+      }
+      .tm-list li button.rename-btn:hover { background: #218838; }
       .tm-list li button.remove-btn {
         background: transparent;
         border: none;
@@ -944,6 +993,20 @@ async function onAddCurrent() {
       span.textContent = channelName
       li.appendChild(checkbox)
       li.appendChild(span)
+      const renameBtn = document.createElement('button')
+      renameBtn.textContent = 'Update'
+      renameBtn.className = 'rename-btn'
+      renameBtn.style.display = 'none'
+      async function handleRenameClick() {
+        const newName = renameBtn.dataset.newName
+        if (!newName) return
+        await removeChannel(channelName)
+        await addChannel(newName)
+        showToast(`${channelName} updated to ${newName}`, 'green')
+        refreshListUI()
+        applySearchFilter()
+      }
+      renameBtn.addEventListener('click', handleRenameClick)
       const removeBtn = document.createElement('button')
       removeBtn.textContent = '✕'
       removeBtn.className = 'remove-btn'
@@ -956,8 +1019,18 @@ async function onAddCurrent() {
         applySearchFilter()
       }
       removeBtn.addEventListener('click', handleRemoveClick)
+      li.appendChild(renameBtn)
       li.appendChild(removeBtn)
       ul.appendChild(li)
+
+      resolveRenamedChannel(channelName).then(newName => {
+        if (newName && newName !== channelName) {
+          li.classList.add('renamed')
+          span.textContent = `${channelName} (${newName})`
+          renameBtn.dataset.newName = newName
+          renameBtn.style.display = 'inline-block'
+        }
+      })
     })
 
     const titleEl = document.querySelector('#tm-lock-panel .tm-title')
