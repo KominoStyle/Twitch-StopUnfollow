@@ -164,20 +164,23 @@
   function injectHeaderLockIcon() {
     const channel = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
     if (!channel) return
-    const anchor = document.querySelector(
-      'button[data-a-target="follow-button"], button[data-a-target="unfollow-button"]'
-    )
-    if (!anchor) return
-    if (document.getElementById('tm-header-lock-icon')) return
-
+    const anchor = document.querySelector('button[data-a-target="unfollow-button"]')
+    const existing = document.getElementById('tm-header-lock-icon')
     const saved = getLockedChannels().includes(channel)
+
+    if (!anchor || !saved) {
+      if (existing) existing.remove()
+      return
+    }
+    if (existing) return
+
     const svgNS = 'http://www.w3.org/2000/svg'
     const icon = document.createElementNS(svgNS, 'svg')
     icon.id = 'tm-header-lock-icon'
     icon.setAttribute('width', '20')
     icon.setAttribute('height', '20')
     icon.setAttribute('viewBox', '0 0 20 20')
-    icon.setAttribute('fill', saved ? '#9147ff' : '#aaa')
+    icon.setAttribute('fill', '#9147ff')
     icon.style.cursor = 'pointer'
     icon.style.marginLeft = '8px'
     icon.style.verticalAlign = 'middle'
@@ -189,12 +192,11 @@
       if (lockedChannels.includes(channel)) {
         lockedChannels = lockedChannels.filter(savedChannel => savedChannel !== channel)
         setLockedChannels(lockedChannels)
-        icon.setAttribute('fill', '#aaa')
+        icon.remove()
         enableUnfollowIfPresent()
       } else {
         lockedChannels.push(channel)
         setLockedChannels(lockedChannels)
-        icon.setAttribute('fill', '#9147ff')
         disableUnfollowIfSaved()
       }
     }
@@ -208,6 +210,7 @@
   let sortMode = 'latest'
   let selectionMode = false
   let settingsObserver
+  let followObserver
   function buildPanel() {
     if (document.getElementById('tm-lock-panel')) return;
     const panel = document.createElement('div');
@@ -1118,6 +1121,14 @@ async function onAddCurrent() {
     )
   }
 
+  function hookFollowButton() {
+    if (followObserver) followObserver.disconnect()
+    followObserver = domObserver.on(
+      'button[data-a-target="unfollow-button"]',
+      () => injectHeaderLockIcon()
+    )
+  }
+
   //////////////////////////////
   // 7) Initialization
   //////////////////////////////
@@ -1125,6 +1136,7 @@ async function onAddCurrent() {
   disableUnfollowIfSaved()
   injectHeaderLockIcon()
   hookSettingsDropdown()
+  hookFollowButton()
 
     //////////////////////////////
   // SPA-aware Navigation Hook
@@ -1134,6 +1146,8 @@ async function onAddCurrent() {
       injectHeaderLockIcon()
       if (settingsObserver) settingsObserver.disconnect()
       hookSettingsDropdown()
+      if (followObserver) followObserver.disconnect()
+      hookFollowButton()
       updateAddCurrentButtonState()
     }
     // Patch pushState only once
