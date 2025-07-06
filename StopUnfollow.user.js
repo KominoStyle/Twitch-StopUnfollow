@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.51
+// @version      1.53
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
@@ -133,73 +133,82 @@
   //////////////////////////////
   // 3) “Unfollow” Button Logic
   //////////////////////////////
+  function getButtonChannel(btn) {
+    const label = btn.getAttribute('aria-label') || ''
+    const match = label.match(/^([^\s]+)/)
+    if (match) return match[1].toLowerCase()
+    return window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
+  }
+
+  function applyUnfollowDisabled(btn) {
+    btn.disabled = true
+    btn.setAttribute('title', 'Disabled to prevent unfollow.')
+    btn.style.opacity = '0.5'
+    btn.style.cursor = 'not-allowed'
+  }
+
   function disableUnfollowIfSaved() {
-    const channel = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
-    if (!channel) return
-    const saved = getLockedChannels()
-    if (!saved.includes(channel)) return
+    const saved = getLockedChannels().map(c => c.toLowerCase())
     const poll = setInterval(() => {
-      const btn = document.querySelector('button[data-a-target="unfollow-button"]')
-      if (!btn) return
-      btn.disabled = true
-      btn.setAttribute('title', 'Disabled to prevent unfollow.')
-      btn.style.opacity = '0.5'
-      btn.style.cursor = 'not-allowed'
-      clearInterval(poll)
+      const buttons = document.querySelectorAll('button[data-a-target="unfollow-button"]')
+      if (!buttons.length) return
+      let disabledAny = false
+      buttons.forEach(btn => {
+        const channel = getButtonChannel(btn)
+        if (saved.includes(channel)) {
+          applyUnfollowDisabled(btn)
+          disabledAny = true
+        }
+      })
+      if (disabledAny) clearInterval(poll)
     }, 200)
   }
 
   function enableUnfollowIfPresent() {
-    const btn = document.querySelector('button[data-a-target="unfollow-button"]')
-    if (!btn) return
-    btn.disabled = false
-    btn.removeAttribute('title')
-    btn.style.opacity = ''
-    btn.style.cursor = ''
+    const buttons = document.querySelectorAll('button[data-a-target="unfollow-button"]')
+    buttons.forEach(btn => {
+      btn.disabled = false
+      btn.removeAttribute('title')
+      btn.style.opacity = ''
+      btn.style.cursor = ''
+    })
   }
 
   //////////////////////////////
   // 4) Header Lock Icon
   //////////////////////////////
   function injectHeaderLockIcon() {
-    const channel = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
-    if (!channel) return
-    const anchor = document.querySelector(
-      'button[data-a-target="follow-button"], button[data-a-target="unfollow-button"]'
-    )
-    if (!anchor) return
-    if (document.getElementById('tm-header-lock-icon')) return
-
-    const saved = getLockedChannels().includes(channel)
-    const svgNS = 'http://www.w3.org/2000/svg'
-    const icon = document.createElementNS(svgNS, 'svg')
-    icon.id = 'tm-header-lock-icon'
-    icon.setAttribute('width', '20')
-    icon.setAttribute('height', '20')
-    icon.setAttribute('viewBox', '0 0 20 20')
-    icon.setAttribute('fill', saved ? '#9147ff' : '#aaa')
-    icon.style.cursor = 'pointer'
-    icon.style.marginLeft = '8px'
-    icon.style.verticalAlign = 'middle'
-    icon.innerHTML = `
-      <path fill-rule="evenodd" d="M14.001 5.99A3.992 3.992 0 0 0 10.01 2h-.018a3.992 3.992 0 0 0-3.991 3.99V8H3.999v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8h-1.998V5.99zm-2 2.01V5.995A1.996 1.996 0 0 0 10.006 4h-.01a1.996 1.996 0 0 0-1.995 1.995V8h4z" clip-rule="evenodd"></path>
-    `
-    function handleHeaderIconClick() {
-      let lockedChannels = getLockedChannels()
-      if (lockedChannels.includes(channel)) {
-        lockedChannels = lockedChannels.filter(savedChannel => savedChannel !== channel)
-        setLockedChannels(lockedChannels)
-        icon.setAttribute('fill', '#aaa')
-        enableUnfollowIfPresent()
-      } else {
-        lockedChannels.push(channel)
-        setLockedChannels(lockedChannels)
-        icon.setAttribute('fill', '#9147ff')
-        disableUnfollowIfSaved()
+    const saved = getLockedChannels().map(c => c.toLowerCase())
+    const buttons = document.querySelectorAll('button[data-a-target="unfollow-button"]')
+    buttons.forEach(btn => {
+      const channel = getButtonChannel(btn)
+      const isSaved = saved.includes(channel)
+      const lockIcon = btn.querySelector('#tm-header-lock-icon')
+      const defaultIcon = btn.querySelector('svg:not(#tm-header-lock-icon)')
+      if (!isSaved || !defaultIcon) {
+        if (lockIcon) {
+          lockIcon.remove()
+          if (defaultIcon) defaultIcon.style.display = ''
+        }
+        return
       }
-    }
-    icon.addEventListener('click', handleHeaderIconClick)
-    anchor.parentNode.insertBefore(icon, anchor.nextSibling)
+      if (lockIcon) return
+      defaultIcon.style.display = 'none'
+      const svgNS = 'http://www.w3.org/2000/svg'
+      const icon = document.createElementNS(svgNS, 'svg')
+      icon.id = 'tm-header-lock-icon'
+      icon.setAttribute('width', defaultIcon.getAttribute('width') || '20')
+      icon.setAttribute('height', defaultIcon.getAttribute('height') || '20')
+      icon.setAttribute('viewBox', '0 0 20 20')
+      icon.setAttribute('fill', '#efeff1')
+      icon.title = 'Unfollow disabled for this channel'
+      icon.innerHTML = `
+        <path fill-rule="evenodd" d="M14.001 5.99A3.992 3.992 0 0 0 10.01 2h-.018a3.992 3.992 0 0 0-3.991 3.99V8H3.999v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8h-1.998V5.99zm-2 2.01V5.995A1.996 1.996 0 0 0 10.006 4h-.01a1.996 1.996 0 0 0-1.995 1.995V8h4z" clip-rule="evenodd"></path>
+      `
+      if (defaultIcon.parentNode) {
+        defaultIcon.parentNode.insertBefore(icon, defaultIcon)
+      }
+    })
   }
 
   //////////////////////////////
@@ -208,6 +217,7 @@
   let sortMode = 'latest'
   let selectionMode = false
   let settingsObserver
+  let followObserver
   function buildPanel() {
     if (document.getElementById('tm-lock-panel')) return;
     const panel = document.createElement('div');
@@ -543,6 +553,13 @@
       /* Avatar dropdown menu styles (built in) */
       .tmMenuWrapper { padding: 2px 0; }
       .tmMenuItem { display: block; color: inherit; text-decoration: none; }
+      .tmMenuItem:link,
+      .tmMenuItem:visited,
+      .tmMenuItem:hover,
+      .tmMenuItem:active {
+        color: inherit;
+        text-decoration: none;
+      }
       .tmMenuItem .tmMenuContainer {
         display: flex !important;
         -webkit-box-align: center !important;
@@ -790,7 +807,7 @@
         }
       }
       showToast(added ? `${added} added` : 'No valid channels', added ? 'green' : 'red')
-      updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
+      updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved(); injectHeaderLockIcon()
     }
     addBtn.addEventListener('click', handleAddButtonClick)
     addCurrent.addEventListener('click', handleAddCurrentClick)
@@ -829,7 +846,7 @@
     const added = await addChannel(raw)
     showToast(added ? `${raw} added` : '✓ Already saved', added ? 'green' : 'red')
 
-    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
+    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved(); injectHeaderLockIcon()
 }
 
 
@@ -853,7 +870,7 @@ async function onAddCurrent() {
     }
     const added = await addChannel(current)
     showToast(added ? `${current} added` : '✓ Already saved', added ? 'green' : 'red')
-    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved()
+    updateAddCurrentButtonState(); refreshListUI(); applySearchFilter(); updateDeleteSelectedButtonState(); disableUnfollowIfSaved(); injectHeaderLockIcon()
 }
 
   function showToast(message, color) {
@@ -1015,6 +1032,7 @@ async function onAddCurrent() {
     const current = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
     if (current === channelName) {
       enableUnfollowIfPresent()
+      injectHeaderLockIcon()
     }
   }
 
@@ -1118,6 +1136,17 @@ async function onAddCurrent() {
     )
   }
 
+  function hookFollowButton() {
+    if (followObserver) followObserver.disconnect()
+    followObserver = domObserver.on(
+      'button[data-a-target="unfollow-button"] svg',
+      () => {
+        injectHeaderLockIcon()
+        disableUnfollowIfSaved()
+      }
+    )
+  }
+
   //////////////////////////////
   // 7) Initialization
   //////////////////////////////
@@ -1125,6 +1154,7 @@ async function onAddCurrent() {
   disableUnfollowIfSaved()
   injectHeaderLockIcon()
   hookSettingsDropdown()
+  hookFollowButton()
 
     //////////////////////////////
   // SPA-aware Navigation Hook
@@ -1134,6 +1164,8 @@ async function onAddCurrent() {
       injectHeaderLockIcon()
       if (settingsObserver) settingsObserver.disconnect()
       hookSettingsDropdown()
+      if (followObserver) followObserver.disconnect()
+      hookFollowButton()
       updateAddCurrentButtonState()
     }
     // Patch pushState only once
