@@ -133,11 +133,19 @@
   //////////////////////////////
   // 3) “Unfollow” Button Logic
   //////////////////////////////
+  function getCurrentChannel() {
+    const parts = window.location.pathname
+      .replace(/^\/+|\/+$/g, '')
+      .split('/')
+      .filter(Boolean)
+    return parts.length ? parts[parts.length - 1].toLowerCase() : ''
+  }
+
   function getButtonChannel(btn) {
     const label = btn.getAttribute('aria-label') || ''
     const match = label.match(/^([^\s]+)/)
     if (match) return match[1].toLowerCase()
-    return window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
+    return getCurrentChannel()
   }
 
   function applyUnfollowDisabled(btn) {
@@ -851,7 +859,7 @@
 
 
 async function onAddCurrent() {
-    const current = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
+    const current = getCurrentChannel()
     if (!current) { showToast('Not on a channel page.', 'red'); return }
     // Current channel should also respect the 3–26 character rule
     if (!/^.{4,26}$/u.test(current)) {
@@ -990,7 +998,7 @@ async function onAddCurrent() {
   function updateAddCurrentButtonState() {
     const btn = document.getElementById('tm-add-current')
     if (!btn) return
-    const currentChannel = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
+    const currentChannel = getCurrentChannel()
     const saved = getLockedChannels()
     btn.classList.remove('green', 'red')
     if (currentChannel && saved.includes(currentChannel)) {
@@ -1029,7 +1037,7 @@ async function onAddCurrent() {
     let lockedChannels = getLockedChannels()
     lockedChannels = lockedChannels.filter(savedChannel => savedChannel !== channelName)
     setLockedChannels(lockedChannels)
-    const current = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
+    const current = getCurrentChannel()
     if (current === channelName) {
       enableUnfollowIfPresent()
       injectHeaderLockIcon()
