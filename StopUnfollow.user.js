@@ -153,6 +153,7 @@
     btn.setAttribute('title', 'Disabled to prevent unfollow.')
     btn.style.opacity = '0.5'
     btn.style.cursor = 'not-allowed'
+    btn.style.pointerEvents = 'none'
   }
 
   function disableUnfollowIfSaved() {
@@ -179,6 +180,7 @@
       btn.removeAttribute('title')
       btn.style.opacity = ''
       btn.style.cursor = ''
+      btn.style.pointerEvents = ''
     })
   }
 
