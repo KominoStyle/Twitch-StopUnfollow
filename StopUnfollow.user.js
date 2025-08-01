@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.53
+// @version      1.54
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
@@ -182,6 +182,35 @@
     })
   }
 
+  function createGuiltTripMessage() {
+    const msg = document.createElement('div')
+    msg.innerHTML = `
+      <div style="
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #fff;
+        background: linear-gradient(135deg, #8e0038, #2e003e);
+        padding: 28px 20px;
+        margin-top: 20px;
+        border-radius: 14px;
+        text-align: center;
+        font-family: 'Segoe UI', Roboto, sans-serif;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+        animation: guiltFade 0.4s ease-out;
+      ">
+        Go ahead.<br>
+        I\u2019m sure the unfollow button needs the attention more than I do.
+      </div>
+      <style>
+        @keyframes guiltFade {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+      </style>
+    `
+    return msg
+  }
+
   //////////////////////////////
   // 4) Header Lock Icon
   //////////////////////////////
@@ -226,6 +255,8 @@
   let selectionMode = false
   let settingsObserver
   let followObserver
+  let modalObserver
+  let tooltipObserver
   function buildPanel() {
     if (document.getElementById('tm-lock-panel')) return;
     const panel = document.createElement('div');
@@ -1155,6 +1186,50 @@ async function onAddCurrent() {
     )
   }
 
+  function hookUnfollowModal() {
+    if (modalObserver) modalObserver.disconnect()
+    modalObserver = domObserver.on(
+      'button[data-a-target="modal-unfollow-button"]',
+      () => {
+        document
+          .querySelectorAll('button[data-a-target="modal-unfollow-button"]')
+          .forEach(btn => {
+            const modal = btn.closest('.tw-modal')
+            if (modal) {
+              modal.querySelectorAll('button').forEach(b => b.remove())
+              modal.appendChild(createGuiltTripMessage())
+            } else {
+              btn.remove()
+            }
+          })
+      }
+    )
+  }
+
+  function hookUnfollowTooltip() {
+    if (tooltipObserver) tooltipObserver.disconnect()
+    tooltipObserver = domObserver.on(
+      '.tw-tooltip-layer .tw-tooltip-wrapper',
+      () => {
+        document
+          .querySelectorAll('.tw-tooltip-layer .tw-tooltip-wrapper')
+          .forEach(wrapper => {
+            const text = wrapper.textContent.trim().toLowerCase()
+            if (text === 'unfollow' || text === 'nicht mehr folgen') {
+              const layer = wrapper.closest('.tw-tooltip-layer')
+              if (layer) {
+                layer.querySelectorAll('div').forEach(el => el.remove())
+                layer.style.pointerEvents = 'none'
+                layer.appendChild(createGuiltTripMessage())
+              } else {
+                wrapper.remove()
+              }
+            }
+          })
+      }
+    )
+  }
+
   //////////////////////////////
   // 7) Initialization
   //////////////////////////////
@@ -1163,6 +1238,8 @@ async function onAddCurrent() {
   injectHeaderLockIcon()
   hookSettingsDropdown()
   hookFollowButton()
+  hookUnfollowModal()
+  hookUnfollowTooltip()
 
     //////////////////////////////
   // SPA-aware Navigation Hook
@@ -1174,6 +1251,10 @@ async function onAddCurrent() {
       hookSettingsDropdown()
       if (followObserver) followObserver.disconnect()
       hookFollowButton()
+      if (modalObserver) modalObserver.disconnect()
+      hookUnfollowModal()
+      if (tooltipObserver) tooltipObserver.disconnect()
+      hookUnfollowTooltip()
       updateAddCurrentButtonState()
     }
     // Patch pushState only once
