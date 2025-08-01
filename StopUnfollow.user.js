@@ -63,6 +63,17 @@
     }
   `)
 
+  function blockDisabledUnfollow(e) {
+    const btn = e.target.closest && e.target.closest('button[data-a-target="unfollow-button"]')
+    if (btn && btn.__tmBlocked) {
+      e.preventDefault()
+      e.stopImmediatePropagation()
+    }
+  }
+  ;['pointerdown', 'pointerup', 'click'].forEach(ev => {
+    document.addEventListener(ev, blockDisabledUnfollow, true)
+  })
+
   function showUpdatePrompt() {
     const panel = document.getElementById('tm-lock-panel')
     const container = document.getElementById('tm-update-prompt')
@@ -155,12 +166,7 @@
   }
 
   function applyUnfollowDisabled(btn) {
-    function handleBlockedClick(e) {
-      e.preventDefault()
-      e.stopImmediatePropagation()
-    }
-    btn.addEventListener('click', handleBlockedClick, true)
-    btn.__tmBlocked = handleBlockedClick
+    btn.__tmBlocked = true
     btn.disabled = true
     btn.setAttribute('title', 'Disabled to prevent unfollow.')
     btn.style.opacity = '0.5'
@@ -187,10 +193,7 @@
   function enableUnfollowIfPresent() {
     const buttons = document.querySelectorAll('button[data-a-target="unfollow-button"]')
     buttons.forEach(btn => {
-      if (btn.__tmBlocked) {
-        btn.removeEventListener('click', btn.__tmBlocked, true)
-        delete btn.__tmBlocked
-      }
+      if (btn.__tmBlocked) delete btn.__tmBlocked
       btn.disabled = false
       btn.removeAttribute('title')
       btn.style.opacity = ''
