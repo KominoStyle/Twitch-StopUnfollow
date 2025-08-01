@@ -57,6 +57,12 @@
 
   checkForUpdates()
 
+  GM_addStyle(`
+    button[data-a-target="unfollow-button"][disabled]:hover {
+      filter: brightness(0.8);
+    }
+  `)
+
   function showUpdatePrompt() {
     const panel = document.getElementById('tm-lock-panel')
     const container = document.getElementById('tm-update-prompt')
@@ -149,6 +155,12 @@
   }
 
   function applyUnfollowDisabled(btn) {
+    function handleBlockedClick(e) {
+      e.preventDefault()
+      e.stopImmediatePropagation()
+    }
+    btn.addEventListener('click', handleBlockedClick, true)
+    btn.__tmBlocked = handleBlockedClick
     btn.disabled = true
     btn.setAttribute('title', 'Disabled to prevent unfollow.')
     btn.style.opacity = '0.5'
@@ -175,6 +187,10 @@
   function enableUnfollowIfPresent() {
     const buttons = document.querySelectorAll('button[data-a-target="unfollow-button"]')
     buttons.forEach(btn => {
+      if (btn.__tmBlocked) {
+        btn.removeEventListener('click', btn.__tmBlocked, true)
+        delete btn.__tmBlocked
+      }
       btn.disabled = false
       btn.removeAttribute('title')
       btn.style.opacity = ''
