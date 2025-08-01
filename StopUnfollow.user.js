@@ -163,6 +163,12 @@
       let disabledAny = false
       buttons.forEach(btn => {
         const channel = getButtonChannel(btn)
+        if (!btn.dataset.tmClickTracked) {
+          btn.addEventListener('click', () => {
+            pendingUnfollowChannel = getButtonChannel(btn)
+          })
+          btn.dataset.tmClickTracked = '1'
+        }
         if (saved.includes(channel)) {
           applyUnfollowDisabled(btn)
           disabledAny = true
@@ -257,6 +263,7 @@
   let followObserver
   let modalObserver
   let tooltipObserver
+  let pendingUnfollowChannel = ''
   function buildPanel() {
     if (document.getElementById('tm-lock-panel')) return;
     const panel = document.createElement('div');
@@ -1191,9 +1198,12 @@ async function onAddCurrent() {
     modalObserver = domObserver.on(
       'button[data-a-target="modal-unfollow-button"]',
       () => {
+        const saved = getLockedChannels().map(c => c.toLowerCase())
         document
           .querySelectorAll('button[data-a-target="modal-unfollow-button"]')
           .forEach(btn => {
+            const channel = (pendingUnfollowChannel || getButtonChannel(btn)).toLowerCase()
+            if (!saved.includes(channel)) return
             const modal = btn.closest('.tw-modal')
             if (modal) {
               modal.querySelectorAll('button').forEach(b => b.remove())
@@ -1202,6 +1212,7 @@ async function onAddCurrent() {
               btn.remove()
             }
           })
+        pendingUnfollowChannel = ''
       }
     )
   }
@@ -1209,10 +1220,19 @@ async function onAddCurrent() {
   function hookUnfollowTooltip() {
     if (tooltipObserver) tooltipObserver.disconnect()
     tooltipObserver = domObserver.on('.tw-tooltip-layer', () => {
+      const saved = getLockedChannels().map(c => c.toLowerCase())
       document.querySelectorAll('.tw-tooltip-layer').forEach(layer => {
         const wrapper = layer.querySelector('.tw-tooltip-wrapper')
         const text = wrapper?.textContent.trim().toLowerCase()
         if (text === 'unfollow' || text === 'nicht mehr folgen') {
+          const id = layer.querySelector('[id]')?.id
+          let channel = pendingUnfollowChannel
+          if (!channel && id) {
+            const trigger = document.querySelector(`[aria-describedby="${id}"]`)
+            if (trigger) channel = getButtonChannel(trigger.closest('button') || trigger)
+          }
+          if (!channel) channel = getCurrentChannel()
+          if (!saved.includes(channel.toLowerCase())) return
           const content = layer.querySelector(
             '.ReactModal__Content[role="tooltip"]'
           )
@@ -1223,6 +1243,7 @@ async function onAddCurrent() {
             layer.replaceChildren(createGuiltTripMessage())
             layer.style.pointerEvents = 'none'
           }
+          pendingUnfollowChannel = ''
         }
       })
     })
