@@ -155,6 +155,13 @@
     btn.style.cursor = 'not-allowed'
   }
 
+  function applyUnfollowEnabled(btn) {
+    btn.disabled = false
+    btn.removeAttribute('title')
+    btn.style.opacity = ''
+    btn.style.cursor = ''
+  }
+
   function disableUnfollowIfSaved() {
     const saved = getLockedChannels().map(c => c.toLowerCase())
     const poll = setInterval(() => {
@@ -172,6 +179,8 @@
         if (saved.includes(channel)) {
           applyUnfollowDisabled(btn)
           disabledAny = true
+        } else {
+          applyUnfollowEnabled(btn)
         }
       })
       if (disabledAny) clearInterval(poll)
@@ -181,10 +190,7 @@
   function enableUnfollowIfPresent() {
     const buttons = document.querySelectorAll('button[data-a-target="unfollow-button"]')
     buttons.forEach(btn => {
-      btn.disabled = false
-      btn.removeAttribute('title')
-      btn.style.opacity = ''
-      btn.style.cursor = ''
+      applyUnfollowEnabled(btn)
     })
   }
 
@@ -1184,13 +1190,21 @@ async function onAddCurrent() {
 
   function hookFollowButton() {
     if (followObserver) followObserver.disconnect()
-    followObserver = domObserver.on(
-      'button[data-a-target="unfollow-button"] svg',
-      () => {
-        injectHeaderLockIcon()
-        disableUnfollowIfSaved()
-      }
-    )
+    const btn = document.querySelector('button[data-a-target="unfollow-button"]')
+    if (!btn) {
+      followObserver = domObserver.on(
+        'button[data-a-target="unfollow-button"]',
+        () => hookFollowButton()
+      )
+      return
+    }
+    const update = () => {
+      injectHeaderLockIcon()
+      disableUnfollowIfSaved()
+    }
+    update()
+    followObserver = new MutationObserver(update)
+    followObserver.observe(btn, { attributes: true, attributeFilter: ['aria-label'] })
   }
 
   function hookUnfollowModal() {
