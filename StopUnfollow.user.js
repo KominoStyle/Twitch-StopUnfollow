@@ -1208,26 +1208,24 @@ async function onAddCurrent() {
 
   function hookUnfollowTooltip() {
     if (tooltipObserver) tooltipObserver.disconnect()
-    tooltipObserver = domObserver.on(
-      '.tw-tooltip-layer .tw-tooltip-wrapper',
-      () => {
-        document
-          .querySelectorAll('.tw-tooltip-layer .tw-tooltip-wrapper')
-          .forEach(wrapper => {
-            const text = wrapper.textContent.trim().toLowerCase()
-            if (text === 'unfollow' || text === 'nicht mehr folgen') {
-              const layer = wrapper.closest('.tw-tooltip-layer')
-              if (layer) {
-                layer.querySelectorAll('div').forEach(el => el.remove())
-                layer.style.pointerEvents = 'none'
-                layer.appendChild(createGuiltTripMessage())
-              } else {
-                wrapper.remove()
-              }
-            }
-          })
-      }
-    )
+    tooltipObserver = domObserver.on('.tw-tooltip-layer', () => {
+      document.querySelectorAll('.tw-tooltip-layer').forEach(layer => {
+        const wrapper = layer.querySelector('.tw-tooltip-wrapper')
+        const text = wrapper?.textContent.trim().toLowerCase()
+        if (text === 'unfollow' || text === 'nicht mehr folgen') {
+          const content = layer.querySelector(
+            '.ReactModal__Content[role="tooltip"]'
+          )
+          if (content) {
+            content.replaceChildren(createGuiltTripMessage())
+            content.style.pointerEvents = 'none'
+          } else {
+            layer.replaceChildren(createGuiltTripMessage())
+            layer.style.pointerEvents = 'none'
+          }
+        }
+      })
+    })
   }
 
   //////////////////////////////
