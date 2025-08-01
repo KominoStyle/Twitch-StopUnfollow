@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.53
+// @version      1.60
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
@@ -133,11 +133,19 @@
   //////////////////////////////
   // 3) “Unfollow” Button Logic
   //////////////////////////////
+  function getCurrentChannel() {
+    const parts = window.location.pathname
+      .replace(/^\/+|\/+$/g, '')
+      .split('/')
+      .filter(Boolean)
+    return parts.length ? parts[parts.length - 1].toLowerCase() : ''
+  }
+
   function getButtonChannel(btn) {
     const label = btn.getAttribute('aria-label') || ''
     const match = label.match(/^([^\s]+)/)
     if (match) return match[1].toLowerCase()
-    return window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
+    return getCurrentChannel()
   }
 
   function applyUnfollowDisabled(btn) {
@@ -155,6 +163,12 @@
       let disabledAny = false
       buttons.forEach(btn => {
         const channel = getButtonChannel(btn)
+        if (!btn.dataset.tmClickTracked) {
+          btn.addEventListener('click', () => {
+            pendingUnfollowChannel = getButtonChannel(btn)
+          })
+          btn.dataset.tmClickTracked = '1'
+        }
         if (saved.includes(channel)) {
           applyUnfollowDisabled(btn)
           disabledAny = true
@@ -172,6 +186,35 @@
       btn.style.opacity = ''
       btn.style.cursor = ''
     })
+  }
+
+  function createGuiltTripMessage() {
+    const msg = document.createElement('div')
+    msg.innerHTML = `
+      <div style="
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #fff;
+        background: linear-gradient(135deg, #8e0038, #2e003e);
+        padding: 28px 20px;
+        margin-top: 20px;
+        border-radius: 14px;
+        text-align: center;
+        font-family: 'Segoe UI', Roboto, sans-serif;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+        animation: guiltFade 0.4s ease-out;
+      ">
+        Go ahead.<br>
+        I\u2019m sure the unfollow button needs the attention more than I do.
+      </div>
+      <style>
+        @keyframes guiltFade {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+      </style>
+    `
+    return msg
   }
 
   //////////////////////////////
@@ -218,6 +261,9 @@
   let selectionMode = false
   let settingsObserver
   let followObserver
+  let modalObserver
+  let tooltipObserver
+  let pendingUnfollowChannel = ''
   function buildPanel() {
     if (document.getElementById('tm-lock-panel')) return;
     const panel = document.createElement('div');
@@ -851,7 +897,7 @@
 
 
 async function onAddCurrent() {
-    const current = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
+    const current = getCurrentChannel()
     if (!current) { showToast('Not on a channel page.', 'red'); return }
     // Current channel should also respect the 3–26 character rule
     if (!/^.{4,26}$/u.test(current)) {
@@ -990,7 +1036,7 @@ async function onAddCurrent() {
   function updateAddCurrentButtonState() {
     const btn = document.getElementById('tm-add-current')
     if (!btn) return
-    const currentChannel = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
+    const currentChannel = getCurrentChannel()
     const saved = getLockedChannels()
     btn.classList.remove('green', 'red')
     if (currentChannel && saved.includes(currentChannel)) {
@@ -1029,7 +1075,7 @@ async function onAddCurrent() {
     let lockedChannels = getLockedChannels()
     lockedChannels = lockedChannels.filter(savedChannel => savedChannel !== channelName)
     setLockedChannels(lockedChannels)
-    const current = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
+    const current = getCurrentChannel()
     if (current === channelName) {
       enableUnfollowIfPresent()
       injectHeaderLockIcon()
@@ -1147,6 +1193,62 @@ async function onAddCurrent() {
     )
   }
 
+  function hookUnfollowModal() {
+    if (modalObserver) modalObserver.disconnect()
+    modalObserver = domObserver.on(
+      'button[data-a-target="modal-unfollow-button"]',
+      () => {
+        const saved = getLockedChannels().map(c => c.toLowerCase())
+        document
+          .querySelectorAll('button[data-a-target="modal-unfollow-button"]')
+          .forEach(btn => {
+            const channel = (pendingUnfollowChannel || getButtonChannel(btn)).toLowerCase()
+            if (!saved.includes(channel)) return
+            const modal = btn.closest('.tw-modal')
+            if (modal) {
+              modal.querySelectorAll('button').forEach(b => b.remove())
+              modal.appendChild(createGuiltTripMessage())
+            } else {
+              btn.remove()
+            }
+          })
+        pendingUnfollowChannel = ''
+      }
+    )
+  }
+
+  function hookUnfollowTooltip() {
+    if (tooltipObserver) tooltipObserver.disconnect()
+    tooltipObserver = domObserver.on('.tw-tooltip-layer', () => {
+      const saved = getLockedChannels().map(c => c.toLowerCase())
+      document.querySelectorAll('.tw-tooltip-layer').forEach(layer => {
+        const wrapper = layer.querySelector('.tw-tooltip-wrapper')
+        const text = wrapper?.textContent.trim().toLowerCase()
+        if (text === 'unfollow' || text === 'nicht mehr folgen') {
+          const id = layer.querySelector('[id]')?.id
+          let channel = pendingUnfollowChannel
+          if (!channel && id) {
+            const trigger = document.querySelector(`[aria-describedby="${id}"]`)
+            if (trigger) channel = getButtonChannel(trigger.closest('button') || trigger)
+          }
+          if (!channel) channel = getCurrentChannel()
+          if (!saved.includes(channel.toLowerCase())) return
+          const content = layer.querySelector(
+            '.ReactModal__Content[role="tooltip"]'
+          )
+          if (content) {
+            content.replaceChildren(createGuiltTripMessage())
+            content.style.pointerEvents = 'none'
+          } else {
+            layer.replaceChildren(createGuiltTripMessage())
+            layer.style.pointerEvents = 'none'
+          }
+          pendingUnfollowChannel = ''
+        }
+      })
+    })
+  }
+
   //////////////////////////////
   // 7) Initialization
   //////////////////////////////
@@ -1155,6 +1257,8 @@ async function onAddCurrent() {
   injectHeaderLockIcon()
   hookSettingsDropdown()
   hookFollowButton()
+  hookUnfollowModal()
+  hookUnfollowTooltip()
 
     //////////////////////////////
   // SPA-aware Navigation Hook
@@ -1166,6 +1270,10 @@ async function onAddCurrent() {
       hookSettingsDropdown()
       if (followObserver) followObserver.disconnect()
       hookFollowButton()
+      if (modalObserver) modalObserver.disconnect()
+      hookUnfollowModal()
+      if (tooltipObserver) tooltipObserver.disconnect()
+      hookUnfollowTooltip()
       updateAddCurrentButtonState()
     }
     // Patch pushState only once
