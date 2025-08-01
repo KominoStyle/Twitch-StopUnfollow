@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.53
+// @version      1.54
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
@@ -107,6 +107,25 @@
       return obs
     }
   }
+
+  // Remove unfollow confirmation modal buttons
+  domObserver.on('button[data-a-target="modal-unfollow-button"]', () => {
+    document
+      .querySelectorAll('button[data-a-target="modal-unfollow-button"]')
+      .forEach(btn => {
+        const modal = btn.closest('.tw-modal')
+        if (modal) {
+          modal.querySelectorAll('button').forEach(b => b.remove())
+          const msg = document.createElement('div')
+          msg.textContent = 'Not Today! U Use Stop-Unfollow.'
+          msg.style.padding = '16px'
+          msg.style.textAlign = 'center'
+          modal.appendChild(msg)
+        } else {
+          btn.remove()
+        }
+      })
+  })
 
   //////////////////////////////
   // 2) Storage Helpers
