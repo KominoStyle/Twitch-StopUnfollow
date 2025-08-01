@@ -58,7 +58,7 @@
   checkForUpdates()
 
   GM_addStyle(`
-    button[data-a-target="unfollow-button"][disabled]:hover {
+    button[data-a-target="unfollow-button"].tm-blocked:hover {
       filter: brightness(0.8);
     }
   `)
@@ -70,7 +70,7 @@
       e.stopImmediatePropagation()
     }
   }
-  ;['pointerdown', 'pointerup', 'click'].forEach(ev => {
+  ;['pointerover', 'pointerdown', 'click'].forEach(ev => {
     document.addEventListener(ev, blockDisabledUnfollow, true)
   })
 
@@ -168,6 +168,7 @@
   function applyUnfollowDisabled(btn) {
     btn.__tmBlocked = true
     btn.disabled = true
+    btn.classList.add('tm-blocked')
     btn.setAttribute('title', 'Disabled to prevent unfollow.')
     btn.style.opacity = '0.5'
     btn.style.cursor = 'not-allowed'
@@ -194,12 +195,14 @@
     const buttons = document.querySelectorAll('button[data-a-target="unfollow-button"]')
     buttons.forEach(btn => {
       if (btn.__tmBlocked) delete btn.__tmBlocked
+      btn.classList.remove('tm-blocked')
       btn.disabled = false
       btn.removeAttribute('title')
       btn.style.opacity = ''
       btn.style.cursor = ''
     })
   }
+
 
   //////////////////////////////
   // 4) Header Lock Icon
