@@ -115,14 +115,38 @@
       .forEach(btn => {
         const modal = btn.closest('.tw-modal')
         if (modal) {
+          // Remove all buttons (because their opinions are invalid)
           modal.querySelectorAll('button').forEach(b => b.remove())
+
+          // Create and style the guilt trip
           const msg = document.createElement('div')
-          msg.textContent = 'Not Today! U Use Stop-Unfollow.'
-          msg.style.padding = '16px'
-          msg.style.textAlign = 'center'
+          msg.innerHTML = `
+          <div style="
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #fff;
+            background: linear-gradient(135deg, #8e0038, #2e003e);
+            padding: 28px 20px;
+            margin-top: 20px;
+            border-radius: 14px;
+            text-align: center;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+            animation: guiltFade 0.4s ease-out;
+          ">
+            Go ahead.<br>
+            I’m sure the unfollow button needs the attention more than I do.
+          </div>
+          <style>
+            @keyframes guiltFade {
+              from { opacity: 0; transform: scale(0.95); }
+              to { opacity: 1; transform: scale(1); }
+            }
+          </style>
+        `;
           modal.appendChild(msg)
         } else {
-          btn.remove()
+          btn.remove() // fallback rage
         }
       })
   })
