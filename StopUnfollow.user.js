@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.60
+// @version      1.61
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
@@ -242,15 +242,23 @@
       const isSaved = target === 'unfollow-button' && saved.includes(channel)
       const lockIcon = btn.querySelector('#tm-header-lock-icon')
       const defaultIcon = btn.querySelector('svg:not(#tm-header-lock-icon)')
+      if (!btn.dataset.tmHoverHandler) {
+        btn.addEventListener('mouseenter', injectHeaderLockIcon)
+        btn.addEventListener('mouseleave', injectHeaderLockIcon)
+        btn.dataset.tmHoverHandler = '1'
+      }
       if (!isSaved || !defaultIcon) {
         if (lockIcon) {
           lockIcon.remove()
-          if (defaultIcon) defaultIcon.style.display = ''
+          if (defaultIcon) defaultIcon.style.removeProperty('display')
         }
         return
       }
-      if (lockIcon) return
-      defaultIcon.style.display = 'none'
+      if (lockIcon) {
+        defaultIcon.style.setProperty('display', 'none', 'important')
+        return
+      }
+      defaultIcon.style.setProperty('display', 'none', 'important')
       const svgNS = 'http://www.w3.org/2000/svg'
       const icon = document.createElementNS(svgNS, 'svg')
       icon.id = 'tm-header-lock-icon'
