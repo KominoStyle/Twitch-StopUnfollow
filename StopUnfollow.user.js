@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch: Stop Unfollow
 // @namespace    http://tampermonkey.net/
-// @version      1.60
+// @version      1.61
 // @description  Inserts “Stop Unfollow” under avatar→Settings. Disables “Unfollow” on saved channels without reloading!
 // @match        https://www.twitch.tv/*
 // @grant        GM_getValue
@@ -155,12 +155,22 @@
     btn.style.cursor = 'not-allowed'
   }
 
+  function applyUnfollowEnabled(btn) {
+    btn.disabled = false
+    btn.removeAttribute('title')
+    btn.style.opacity = ''
+    btn.style.cursor = ''
+  }
+
+  let disablePoll
   function disableUnfollowIfSaved() {
+    if (disablePoll) clearInterval(disablePoll)
     const saved = getLockedChannels().map(c => c.toLowerCase())
-    const poll = setInterval(() => {
-      const buttons = document.querySelectorAll('button[data-a-target="unfollow-button"]')
+    disablePoll = setInterval(() => {
+      const buttons = document.querySelectorAll(
+        'button[data-a-target="unfollow-button"], button[data-a-target="follow-button"]'
+      )
       if (!buttons.length) return
-      let disabledAny = false
       buttons.forEach(btn => {
         const channel = getButtonChannel(btn)
         if (!btn.dataset.tmClickTracked) {
@@ -169,22 +179,23 @@
           })
           btn.dataset.tmClickTracked = '1'
         }
-        if (saved.includes(channel)) {
+        const target = btn.getAttribute('data-a-target') || ''
+        if (target === 'unfollow-button' && saved.includes(channel)) {
           applyUnfollowDisabled(btn)
-          disabledAny = true
+        } else {
+          applyUnfollowEnabled(btn)
         }
       })
-      if (disabledAny) clearInterval(poll)
+      clearInterval(disablePoll)
     }, 200)
   }
 
   function enableUnfollowIfPresent() {
-    const buttons = document.querySelectorAll('button[data-a-target="unfollow-button"]')
+    const buttons = document.querySelectorAll(
+      'button[data-a-target="unfollow-button"], button[data-a-target="follow-button"]'
+    )
     buttons.forEach(btn => {
-      btn.disabled = false
-      btn.removeAttribute('title')
-      btn.style.opacity = ''
-      btn.style.cursor = ''
+      applyUnfollowEnabled(btn)
     })
   }
 
@@ -222,21 +233,32 @@
   //////////////////////////////
   function injectHeaderLockIcon() {
     const saved = getLockedChannels().map(c => c.toLowerCase())
-    const buttons = document.querySelectorAll('button[data-a-target="unfollow-button"]')
+    const buttons = document.querySelectorAll(
+      'button[data-a-target="unfollow-button"], button[data-a-target="follow-button"]'
+    )
     buttons.forEach(btn => {
       const channel = getButtonChannel(btn)
-      const isSaved = saved.includes(channel)
+      const target = btn.getAttribute('data-a-target') || ''
+      const isSaved = target === 'unfollow-button' && saved.includes(channel)
       const lockIcon = btn.querySelector('#tm-header-lock-icon')
       const defaultIcon = btn.querySelector('svg:not(#tm-header-lock-icon)')
+      if (!btn.dataset.tmHoverHandler) {
+        btn.addEventListener('mouseenter', injectHeaderLockIcon)
+        btn.addEventListener('mouseleave', injectHeaderLockIcon)
+        btn.dataset.tmHoverHandler = '1'
+      }
       if (!isSaved || !defaultIcon) {
         if (lockIcon) {
           lockIcon.remove()
-          if (defaultIcon) defaultIcon.style.display = ''
+          if (defaultIcon) defaultIcon.style.removeProperty('display')
         }
         return
       }
-      if (lockIcon) return
-      defaultIcon.style.display = 'none'
+      if (lockIcon) {
+        defaultIcon.style.setProperty('display', 'none', 'important')
+        return
+      }
+      defaultIcon.style.setProperty('display', 'none', 'important')
       const svgNS = 'http://www.w3.org/2000/svg'
       const icon = document.createElementNS(svgNS, 'svg')
       icon.id = 'tm-header-lock-icon'
@@ -1184,13 +1206,23 @@ async function onAddCurrent() {
 
   function hookFollowButton() {
     if (followObserver) followObserver.disconnect()
-    followObserver = domObserver.on(
-      'button[data-a-target="unfollow-button"] svg',
-      () => {
-        injectHeaderLockIcon()
-        disableUnfollowIfSaved()
-      }
-    )
+    const selector =
+      'button[data-a-target="unfollow-button"], button[data-a-target="follow-button"]'
+    const btn = document.querySelector(selector)
+    if (!btn) {
+      followObserver = domObserver.on(selector, () => hookFollowButton())
+      return
+    }
+    const update = () => {
+      injectHeaderLockIcon()
+      disableUnfollowIfSaved()
+    }
+    update()
+    followObserver = new MutationObserver(update)
+    followObserver.observe(btn, {
+      attributes: true,
+      attributeFilter: ['aria-label', 'data-a-target']
+    })
   }
 
   function hookUnfollowModal() {
