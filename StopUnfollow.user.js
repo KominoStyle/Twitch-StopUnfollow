@@ -133,6 +133,10 @@
   //////////////////////////////
   // 3) “Unfollow” Button Logic
   //////////////////////////////
+  const UNFOLLOW_BUTTON_SELECTOR =
+    'button[data-a-target="unfollow-button"], button[data-test-selector="unfollow-button"]'
+  const MODAL_UNFOLLOW_BUTTON_SELECTOR =
+    'button[data-a-target="modal-unfollow-button"], button[data-test-selector="modal-unfollow-button"]'
   function getCurrentChannel() {
     const parts = window.location.pathname
       .replace(/^\/+|\/+$/g, '')
@@ -158,7 +162,7 @@
   function disableUnfollowIfSaved() {
     const saved = getLockedChannels().map(c => c.toLowerCase())
     const poll = setInterval(() => {
-      const buttons = document.querySelectorAll('button[data-a-target="unfollow-button"]')
+      const buttons = document.querySelectorAll(UNFOLLOW_BUTTON_SELECTOR)
       if (!buttons.length) return
       let disabledAny = false
       buttons.forEach(btn => {
@@ -179,7 +183,7 @@
   }
 
   function enableUnfollowIfPresent() {
-    const buttons = document.querySelectorAll('button[data-a-target="unfollow-button"]')
+    const buttons = document.querySelectorAll(UNFOLLOW_BUTTON_SELECTOR)
     buttons.forEach(btn => {
       btn.disabled = false
       btn.removeAttribute('title')
@@ -222,7 +226,7 @@
   //////////////////////////////
   function injectHeaderLockIcon() {
     const saved = getLockedChannels().map(c => c.toLowerCase())
-    const buttons = document.querySelectorAll('button[data-a-target="unfollow-button"]')
+    const buttons = document.querySelectorAll(UNFOLLOW_BUTTON_SELECTOR)
     buttons.forEach(btn => {
       const channel = getButtonChannel(btn)
       const isSaved = saved.includes(channel)
@@ -1185,7 +1189,7 @@ async function onAddCurrent() {
   function hookFollowButton() {
     if (followObserver) followObserver.disconnect()
     followObserver = domObserver.on(
-      'button[data-a-target="unfollow-button"] svg',
+      UNFOLLOW_BUTTON_SELECTOR,
       () => {
         injectHeaderLockIcon()
         disableUnfollowIfSaved()
@@ -1196,11 +1200,11 @@ async function onAddCurrent() {
   function hookUnfollowModal() {
     if (modalObserver) modalObserver.disconnect()
     modalObserver = domObserver.on(
-      'button[data-a-target="modal-unfollow-button"]',
+      MODAL_UNFOLLOW_BUTTON_SELECTOR,
       () => {
         const saved = getLockedChannels().map(c => c.toLowerCase())
         document
-          .querySelectorAll('button[data-a-target="modal-unfollow-button"]')
+          .querySelectorAll(MODAL_UNFOLLOW_BUTTON_SELECTOR)
           .forEach(btn => {
             const channel = (pendingUnfollowChannel || getButtonChannel(btn)).toLowerCase()
             if (!saved.includes(channel)) return
